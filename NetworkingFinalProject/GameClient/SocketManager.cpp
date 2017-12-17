@@ -189,6 +189,22 @@ std::string& SocketManager::parseMessage(int& bytesReceived)
 
 void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
 {
+	int bytesReceived = recv(*this->theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	if (bytesReceived > 0)
+	{
+		//do the conversion
+		std::string receivedPhrase = parseMessage(bytesReceived);
+		if (receivedPhrase.size() > 0)
+		{
+			//add to the screen "buffer"
+			theScreenInfo.push_back(receivedPhrase);
+		}
+	}
+	else if (bytesReceived == -1) {//print error message
 
+	}
+	else if (bytesReceived == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {//print error message
+		print_text("receive failed with error: %s", WSAGetLastError());
+	}
 
 }
