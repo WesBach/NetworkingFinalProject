@@ -41,6 +41,30 @@ int& SocketManager::getPacketSize(std::vector<std::string> theMessage) {
 	int secondTextSize = 0;
 	int tempSize = 0;
 
+	if (theMessage.size() == 2)
+	{
+		commandLength = theMessage[0].size();
+		firstTextSize = theMessage[1].size();
+		secondTextSize = theMessage[2].size();
+		//12 is for the 3 lengths being written in fron of the messages. 3 ints = 12 bytes;
+		tempSize = commandLength + firstTextSize + secondTextSize + 12;
+		return  tempSize;
+	}
+	else if (theMessage.size() == 1)
+	{
+		commandLength = theMessage[0].size();
+		firstTextSize = theMessage[1].size();
+		//12 is for the 3 lengths being written in fron of the messages. 2 ints = 8 bytes;
+		tempSize = commandLength + firstTextSize + 8;
+		return  tempSize;
+	}
+	else
+	{
+		commandLength = theMessage[0].size();
+		tempSize = commandLength + 4;
+		return tempSize;
+	}
+
 	return tempSize;
 }
 
