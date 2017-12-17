@@ -30,7 +30,6 @@ int main() {
 	}
 }
 
-
 int connectToServer() {
 	WSADATA wsaData;
 	SOCKET ConnectSocket = INVALID_SOCKET;
@@ -99,4 +98,28 @@ int connectToServer() {
 
 	//get the server socket
 	g_ptheManager->theSocket = &ConnectSocket;
+}
+
+void setMainInstructions() {
+	//display commands before loop
+	print_text("=======================================");
+	print_text("		Chat Commands:              ");
+	print_text("=======================================");
+	print_text("Register: REGISTER email password");
+	print_text("Authenticate: AUTHENTICATE email password");
+	print_text("Join Room: JR (a-z)");
+	print_text("Leave Room: LR (a-z)");
+	print_text("View Lobbies: VIEW");
+	print_text("Refresh Lobbies: REFRESH");
+	print_text("Send Message: SM (followed by message)");
+}
+
+void keyboardInput() {
+	if (_kbhit()) {
+		char c = _getch();
+		if (c == '\r')
+		{
+
+		}
+	}
 }
