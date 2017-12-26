@@ -117,3 +117,29 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 		printf("receive failed with error: %s", WSAGetLastError());
 	}
 }
+
+void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) {
+	for (int i = 0; i < this->theLobbies.size(); i++)
+	{
+		if (this->theLobbies[i]->lobbyName == lobbyName)
+		{
+			int openSpots = this->theLobbies[i]->getNumOpenings();
+			if (openSpots > 0)
+			{
+				//add the player to the lobby increment the counter
+				this->theLobbies[i]->thePlayers.push_back(theUser);
+				this->theLobbies[i]->numCurPlayers++;
+			}
+			else {
+				//send the failure message
+				sendToClient(theUser, lobbyName + " is currently full!");
+			}
+
+			//found the lobby no need to go any farther
+			return;
+		}
+	}
+
+	//didnt find the lobby 
+	sendToClient(theUser, lobbyName + " does not exist!");
+}
