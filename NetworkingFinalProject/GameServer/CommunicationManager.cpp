@@ -13,6 +13,9 @@ CommunicationManager::~CommunicationManager()
 	delete this->theBuffer;
 }
 
+//Name:			sendToClient
+//Purpose:		Populates the buffer with the message and sends it to the client.
+//Return:		void 
 void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message)
 {
 	createMessage(message);
@@ -24,12 +27,18 @@ void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message
 	}
 }
 
+//Name:			createMessage
+//Purpose:		Populates the buffer with the message.
+//Return:		void 
 void CommunicationManager::createMessage(std::string& message) {
 	this->theBuffer = new Buffer();
 	this->theBuffer->WriteInt32BE(message.size());
 	this->theBuffer->WriteStringBE(message);
 }
 
+//Name:			sendToRoom
+//Purpose:		Populates the buffer with the message and send the packet to each client in the lobby.
+//Return:		void 
 void CommunicationManager::sendToRoom(std::string& roomName, std::string& message) {
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
@@ -44,6 +53,9 @@ void CommunicationManager::sendToRoom(std::string& roomName, std::string& messag
 	}
 }
 
+//Name:			sendToServer
+//Purpose:		Populates the buffer with the message and send the packet to the server.
+//Return:		void 
 void CommunicationManager::sendToServer(SOCKET* theSocket, std::string& message) {
 	//TODO::
 	//May have to change this for different behavior
@@ -56,9 +68,9 @@ void CommunicationManager::sendToServer(SOCKET* theSocket, std::string& message)
 	}
 }
 
-//Name::		closeRoom
-//Purpose::		Given a lobby name a message of the host leaving will be sent to each client. Then the lobby will be removed.
-//Return::		void
+//Name:			closeRoom
+//Purpose:		Given a lobby name a message of the host leaving will be sent to each client. Then the lobby will be removed.
+//Return:		void
 void CommunicationManager::closeRoom(std::string& roomName) {
 	std::string message = "The host has left, You have been removed from the Lobby!";
 
@@ -79,3 +91,29 @@ void CommunicationManager::closeRoom(std::string& roomName) {
 	}
 }
 
+void CommunicationManager::recieveMessage(UserInfo& theUser) {
+
+	int bytesReceived = recv(*theUser.userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	if (bytesReceived >= 4)
+	{
+		//get the packet length
+		int packetLength = theUser.userBuffer->ReadInt32BE();
+
+		//if the entire packet arrived otherwise do nothing
+		if (packetLength == bytesReceived)
+		{
+			//read the rest of the info
+			int commandLength = theUser.userBuffer->ReadInt32BE();
+			std::string command = theUser.userBuffer->ReadStringBE(commandLength);
+
+			if (command == "")
+			{
+
+			}
+		}
+
+	}
+	else if (bytesReceived == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {//print error message
+		printf("receive failed with error: %s", WSAGetLastError());
+	}
+}

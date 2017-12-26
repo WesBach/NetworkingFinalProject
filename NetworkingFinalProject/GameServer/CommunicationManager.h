@@ -21,12 +21,13 @@ public:
 	
 	void sendToClient(UserInfo* theUser, std::string& message);
 	void sendToRoom(std::string& roomName, std::string& message);
-	void receiveFromClient();
+
+	void recieveMessage(UserInfo& theUser);
+
 	void sendToServer(SOCKET* theSocket, std::string& message);
 	void closeRoom(std::string& roomName);
-	void receiveFromServer();
-
 	void createMessage(std::string& message);
+
 };
 
 #endif // !_Communication_Manager_HG_

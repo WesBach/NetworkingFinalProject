@@ -12,15 +12,16 @@
 SocketManager* g_ptheManager;
 std::vector<std::string> g_screenInfo;
 
-int connectToServer();
+int connectToServer(std::string port);
 void setMainInstructions();
 void printScreen();
 std::string& keyboardInput(std::string& input);
 std::vector<std::string> populateCommands(std::string& commands,const int& numCommands);
 
 int main() {
+	//TODO:: Change this to take in an ip and port number
 	//1. Connect to the game server with an ip and port number(1 mark)
-	connectToServer();
+	connectToServer(DEFAULT_PORT);
 	setMainInstructions();
 
 	bool run = true;
@@ -35,12 +36,11 @@ int main() {
 		std::string textOnScreen = "->" + userInput;
 
 		print_text("%-75s", textOnScreen.c_str());
-		//receive messages and send messages
 		end_text();
 	}
 }
 
-int connectToServer() {
+int connectToServer(std::string port) {
 	WSADATA wsaData;
 	SOCKET ConnectSocket = INVALID_SOCKET;
 	struct addrinfo* result = NULL;
@@ -64,7 +64,7 @@ int connectToServer() {
 	hints.ai_protocol = IPPROTO_TCP;
 
 	//get the address info 
-	iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
+	iResult = getaddrinfo(NULL, port.c_str(), &hints, &result);
 	if (iResult != 0) {
 		printf("getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
