@@ -148,10 +148,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Buffer.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="CommunicationManager.cpp" />
+    <ClCompile Include="GameLobby.cpp" />
+    <ClCompile Include="serverMain.cpp" />
+    <ClCompile Include="UserInfo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Buffer.h" />
+    <ClInclude Include="CommunicationManager.h" />
+    <ClInclude Include="GameLobby.h" />
+    <ClInclude Include="UserInfo.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

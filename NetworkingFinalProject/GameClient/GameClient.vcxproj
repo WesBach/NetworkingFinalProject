@@ -148,7 +148,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Buffer.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="clientMain.cpp" />
     <ClCompile Include="SocketManager.cpp" />
     <ClCompile Include="Utils.cpp" />
   </ItemGroup>

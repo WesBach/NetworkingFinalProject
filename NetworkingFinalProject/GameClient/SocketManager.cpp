@@ -22,20 +22,30 @@ SocketManager::~SocketManager() {
 void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 {
 	//build the message in the buffer
-	if (theMessage.size() > 0)
+	if (theMessage.size() >= 1)
 	{
+		//create buffer with the correct size
+		this->theBuffer->resizeBuffer(this->getPacketSize(theMessage));
+
 		//id = 1
 		if (theMessage[0] == "REGISTER" || theMessage[0] == "register")
 		{
 			//2. Register an account. (2 marks)
 			//write packet size;
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
+			//message id
 			this->theBuffer->WriteInt32BE(1);
+			//command length
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
+			//command
 			this->theBuffer->WriteStringBE(theMessage[0]);
+			//emai length
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
+			//email
 			this->theBuffer->WriteStringBE(theMessage[1]);
+			//password length
 			this->theBuffer->WriteInt32BE(theMessage[2].size());
+			//password
 			this->theBuffer->WriteStringBE(theMessage[2]);
 		}
 		else if (theMessage[0] == "AUTHENTICATE" || theMessage[0] == "authenticate")
@@ -92,11 +102,14 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 7
 			//7. Leave the game lobby
-			this->theBuffer->WriteInt32BE(6);
+			this->theBuffer->WriteInt32BE(7);
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
 			this->theBuffer->WriteStringBE(theMessage[0]);
 		}
 	}
+
+	//clear the vector for the next set of commands
+	theMessage.clear();
 }
 
 void SocketManager::sendMessage()
@@ -110,6 +123,9 @@ void SocketManager::sendMessage()
 	}
 }
 
+//Name:			getPacketSize
+//Purpose:		Determines the final size of the packet based on its items. With pre determined lenght prefixing.
+//Return:		int&
 int& SocketManager::getPacketSize(std::vector<std::string> theMessage) {
 	int commandLength = 0;
 	int firstTextSize = 0;
@@ -121,7 +137,7 @@ int& SocketManager::getPacketSize(std::vector<std::string> theMessage) {
 		commandLength = theMessage[0].size();
 		firstTextSize = theMessage[1].size();
 		secondTextSize = theMessage[2].size();
-		//12 is for the 3 lengths being written in fron of the messages. 3 ints = 12 bytes;
+		//12 is for the 3 lengths being written in from the messages. 3 ints = 12 bytes;
 		tempSize = commandLength + firstTextSize + secondTextSize + 12;
 		return  tempSize;
 	}
@@ -143,11 +159,12 @@ int& SocketManager::getPacketSize(std::vector<std::string> theMessage) {
 	return tempSize;
 }
 
-std::string& SocketManager::parseMessage(int& bytesReceived)
+std::vector<std::string>& SocketManager::parseMessage(int& bytesReceived)
 {
 	Header* tempHeader;
 	int messageLength = 0;
-	std::string theMessage = "";
+	std::vector<std::string> theMessages;
+	std::string message = "";
 	//check to see if there is enough bytes to read the packet header
 	if (bytesReceived >= 8)// enough bytes to read the header
 	{
@@ -155,36 +172,34 @@ std::string& SocketManager::parseMessage(int& bytesReceived)
 		//read the packet and do something with it 
 		tempHeader->packet_length = this->theBuffer->ReadInt32BE();
 		tempHeader->message_id = this->theBuffer->ReadInt32BE();
+		//check to make sure the whole packet has arrived
 		if (bytesReceived == tempHeader->packet_length)
 		{
 			//continue reading from the buffer
 			messageLength = this->theBuffer->ReadInt32BE();
-			theMessage = this->theBuffer->ReadStringBE(messageLength);
+			message = this->theBuffer->ReadStringBE(messageLength);
 			//return the message
 
-			//TODO::
-			//based on message id do specific things. 
-
-			/////////////////////////////////////////////////////////////////////
-			//		USE comma separated list for more than one thing coming back?
-			/////////////////////////////////////////////////////////////////////
 			if (tempHeader->message_id == 1) // normal message
 			{
-
+				//single message
+				theMessages.push_back(message);
+				return theMessages;
 			}
 			if (tempHeader->message_id == 2)//refresh should give list lobbies
 			{
-
+				parseStringBySpace(theMessages,message);
 			}
 			if (tempHeader->message_id == 3)//view the game lobby list 
 			{
-
+				//string split on spaces and get the data
+				parseStringBySpace(theMessages, message);
 			}
-
-			return theMessage;
+			return theMessages;
 		}
 	}
-	return theMessage;
+
+	return theMessages;
 }
 
 void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
@@ -193,18 +208,39 @@ void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
 	if (bytesReceived > 0)
 	{
 		//do the conversion
-		std::string receivedPhrase = parseMessage(bytesReceived);
+		std::vector<std::string> receivedPhrase = parseMessage(bytesReceived);
 		if (receivedPhrase.size() > 0)
 		{
 			//add to the screen "buffer"
-			theScreenInfo.push_back(receivedPhrase);
+			for(unsigned int i = 0; i < receivedPhrase.size(); i++)
+			{
+				theScreenInfo.push_back(receivedPhrase[i]);
+			}
 		}
-	}
-	else if (bytesReceived == -1) {//print error message
-
 	}
 	else if (bytesReceived == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {//print error message
 		print_text("receive failed with error: %s", WSAGetLastError());
 	}
 
+}
+
+std::vector<std::string>& SocketManager::parseStringBySpace(std::vector<std::string>& container,std::string& message)
+{
+	
+	std::string tempString;
+	//string split on spaces and get the data
+	for (int i = 0; i < message.size(); i++)
+	{
+		//check for spaces
+		if (message[i] == ' ')
+		{
+			//if the string has letters in it add it to the vector
+			if(tempString.size() > 0)
+				container.push_back(tempString);
+			//go to next letter
+			continue;
+		}
+		else //add the letter to the string
+			tempString += message[i];
+	}
 }

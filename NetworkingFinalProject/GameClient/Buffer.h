@@ -30,6 +30,7 @@ public:
 	std::string ReadStringBE(size_t index, int length);
 	std::string ReadStringBE(int length);
 	int GetBufferLength();
+	void Buffer::resizeBuffer(size_t size);
 	//std::vector<uint8_t> getBuffer();
 	std::vector<char>& getBuffer();
 	char* Buffer::getBufferAsCharArray();

@@ -5,7 +5,7 @@ Buffer::Buffer(size_t size) {
 }
 
 Buffer::Buffer() {
-	this->mBuffer.resize(4096);
+	this->mBuffer.resize(512);
 	this->mReadIndex = 0;
 	this->mWriteIndex = 0;
 	return;
@@ -13,6 +13,10 @@ Buffer::Buffer() {
 
 Buffer::~Buffer() {
 	return;
+}
+
+void Buffer::resizeBuffer(size_t size) {
+	this->mBuffer.resize(size);
 }
 
 //std::vector<uint8_t> Buffer::getBuffer()

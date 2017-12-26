@@ -29,8 +29,9 @@ public:
 	int& getPacketSize(std::vector<std::string> theMassage);
 	void buildMessage(std::vector<std::string>& theMessage);
 	void sendMessage();
-	std::string& parseMessage(int& bytesReceived );
+	std::vector<std::string>& parseMessage(int& bytesReceived );
 	void receiveMessage(std::vector<std::string>& theScreenInfo);
+	std::vector<std::string>& parseStringBySpace(std::vector<std::string>& container, std::string& message);
 };
 
 #endif // 
