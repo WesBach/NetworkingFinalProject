@@ -19,17 +19,18 @@ public:
 	//map of lobbies with the users
 	std::vector<GameLobby*> theLobbies;
 
+	void createLobby(UserInfo* theUser,std::string& mapName, std::string& mode,std::string& gameMode );
 	void joinLobby(UserInfo* theUser, std::string& lobbyName);
-	
+	void leaveLobby(UserInfo* theUser, std::string& lobbyName);
+
 	void sendToClient(UserInfo* theUser, std::string& message);
 	void sendToRoom(std::string& roomName, std::string& message);
+	void sendToServer(SOCKET* theSocket, std::string& message);
 
 	void recieveMessage(UserInfo& theUser);
 
-	void sendToServer(SOCKET* theSocket, std::string& message);
 	void closeRoom(std::string& roomName);
 	void createMessage(std::string& message);
-	void sendJoinFailed(UserInfo* theUser, std::string& reason);
 };
 
 #endif // !_Communication_Manager_HG_

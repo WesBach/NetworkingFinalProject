@@ -119,8 +119,10 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 }
 
 void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) {
+	//search through the lobbies
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
+		//find the lobby
 		if (this->theLobbies[i]->lobbyName == lobbyName)
 		{
 			int openSpots = this->theLobbies[i]->getNumOpenings();
@@ -142,4 +144,36 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 
 	//didnt find the lobby 
 	sendToClient(theUser, lobbyName + " does not exist!");
+}
+
+void CommunicationManager::leaveLobby(UserInfo* theUser, std::string& lobbyName) {
+	std::string tempMessage = "User " + theUser->userName + " has left the lobby!";
+
+	for (int i = 0; i < this->theLobbies.size(); i++)
+	{
+		if (this->theLobbies[i]->lobbyName == lobbyName)
+		{
+			//find the player
+			for (std::vector<UserInfo*>::iterator it = this->theLobbies[i]->thePlayers.begin(); it < this->theLobbies[i]->thePlayers.end(); i++)
+			{
+				//if the player is here remove it
+				if ((*it)->userSocket == theUser->userSocket)
+				{
+					it = this->theLobbies[i]->thePlayers.erase(it);
+					return;
+				}
+			}
+
+			//send a message to the people in the lobby
+			for (int playerIndex = 0; playerIndex < this->theLobbies[i]->thePlayers.size(); playerIndex++)
+			{
+				sendToClient(this->theLobbies[i]->thePlayers[playerIndex], tempMessage);
+			}
+		}
+	}
+
+}
+
+void createLobby(UserInfo* theUser, std::string& mapName, std::string& mode, std::string& gameMode) {
+
 }

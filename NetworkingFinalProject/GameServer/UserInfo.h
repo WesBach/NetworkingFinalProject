@@ -14,6 +14,8 @@ public:
 	std::vector<int> requests;
 
 	bool isLobbyHost;
+	std::string currentLobby;
+	std::string userName;
 
 	bool findRequestId(int& id);
 	bool removeRequest(int& id);

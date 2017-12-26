@@ -3,6 +3,8 @@
 UserInfo::UserInfo()
 {
 	this->isLobbyHost = false;
+	this->currentLobby = "";
+	this->userName = "";
 }
 
 UserInfo::~UserInfo()
