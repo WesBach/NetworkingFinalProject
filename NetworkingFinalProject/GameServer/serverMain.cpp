@@ -11,36 +11,38 @@
 #include <map>
 #include <ctime>
 #include "UserInfo.h"
+#include "CommunicationManager.h"
 //#include "AccountAuthentication.pb.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 #define DEFAULT_PORT "5000"	//was 8899
 #define DEFAULT_AUTHENTICATION_PORT "6000"	//was 8899
-#define DEFAULT_BUFFER_LENGTH 512
 
 //Globel variables
 enum message_ID { JOINROOM, LEAVEROOM, SENDMESSAGE, RECEIVEMESSAGE };
 std::map<char, std::vector<UserInfo*>> roomMap;
 std::vector<UserInfo*> usersInServer;
 fd_set master;
-SOCKET ListenSocket;
+SOCKET ListeningSocket;
 Buffer* g_theBuffer = new Buffer();
 //socket info structure to store all the individual socket information
 int initListening();
-void sendToClient(SOCKET* theSocket,std::string& message);
+CommunicationManager* theManager = new CommunicationManager();
+UserInfo* getClientFromVector(SOCKET& theSock);
 
 int main() {
 	//zero out master
 	FD_ZERO(&master);
-	FD_SET(ListenSocket, &master);
+	FD_SET(ListeningSocket, &master);
 
 	//start listening
 	initListening();
 
-	bool running = true;
+	bool serverRunning = true;
 	bool authServerConnected = false;
 
-	while (running) {
+	while (serverRunning)
+	{
 		fd_set copy = master;
 
 		//get number of sockets in communication at that moment
@@ -53,10 +55,10 @@ int main() {
 				// Makes things easy for us doing this assignment
 				SOCKET sock = copy.fd_array[i];
 
-				if (sock == ListenSocket)// Is it an inbound connection?
+				if (sock == ListeningSocket)// Is it an inbound connection?
 				{
 					// Accept a new connection
-					SOCKET client = accept(ListenSocket, nullptr, nullptr);
+					SOCKET client = accept(ListeningSocket, nullptr, nullptr);
 					UserInfo* newUser = new UserInfo();
 					//Create the userInfo struct and add them to the list of users
 					newUser->userBuffer = new Buffer();
@@ -65,6 +67,9 @@ int main() {
 					//Assigns the new user to the hub room.
 					usersInServer.push_back(newUser);
 
+
+					//TODO:: Put the auth server in the vector and use its name to identify it
+
 					////check to see if its the auth server (only works if auth server is first connection)
 					//if (authServerConnected == false)
 					//{
@@ -72,17 +77,23 @@ int main() {
 					//	authServerConnected = true;
 					//}
 
-					// Add the new connection to the list of connected clients
+					// Add the connection
 					FD_SET(client, &master);
 
 					// Send a welcome message to the connected client
-					std::string welcomeMsg = "Welcome to the Awesome Chat Server!";
+					std::string connectionMessage = "You are now connected to the chat server!";
 					//send(client, welcomeMsg.c_str(), welcomeMsg.size() + 1, 0);
-					sendToClient(newUser->userSocket, welcomeMsg);
+					theManager->sendToClient(newUser, connectionMessage);
+				}
+				else {
+					UserInfo* currInfo = getClientFromVector(sock);
+					currInfo->userBuffer = new Buffer();
+
+					theManager->recieveMessage(*currInfo);
 				}
 
-			}
-		}
+			}//end for
+		}//end if(socketCount > 0)
 
 	}
 
@@ -150,8 +161,8 @@ int initListening() {
 
 	// Socket()
 	//socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
-	ListenSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (ListenSocket == INVALID_SOCKET) {
+	ListeningSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (ListeningSocket == INVALID_SOCKET) {
 		printf("socket() failed with error %d\n", WSAGetLastError());
 		WSACleanup();
 		return 1;
@@ -160,20 +171,20 @@ int initListening() {
 
 	// Bind()
 	iResult = getaddrinfo(NULL, DEFAULT_PORT, &addressInfo, &result);
-	iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+	iResult = bind(ListeningSocket, result->ai_addr, (int)result->ai_addrlen);
 	if (iResult == SOCKET_ERROR) {
 		printf("bind() failed with error: %d\n", WSAGetLastError());
 		freeaddrinfo(result);
-		closesocket(ListenSocket);
+		closesocket(ListeningSocket);
 		WSACleanup();
 		return 1;
 	}
 	printf("Bind Listen Socket\n");
 
 	// Listen()
-	if (listen(ListenSocket, 5)) {
+	if (listen(ListeningSocket, 5)) {
 		printf("listen() failed with error: %d\n", WSAGetLastError());
-		closesocket(ListenSocket);
+		closesocket(ListeningSocket);
 		WSACleanup();
 		return 1;
 	}
@@ -181,6 +192,15 @@ int initListening() {
 
 }
 
-void sendToClient(SOCKET* theSocket, std::string& message) {
-
+UserInfo* getClientFromVector(SOCKET& theSock) {
+	UserInfo* currInfo = new UserInfo();
+	for (int i = 0; i < usersInServer.size(); i++)
+	{
+		if (*usersInServer[i]->userSocket == theSock)
+		{
+			currInfo = usersInServer[i];
+			break;
+		}
+	}
+	return currInfo;
 }

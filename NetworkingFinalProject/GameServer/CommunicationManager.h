@@ -23,7 +23,8 @@ public:
 	void joinLobby(UserInfo* theUser, std::string& lobbyName);
 	void leaveLobby(UserInfo* theUser, std::string& lobbyName);
 
-	void sendToClient(UserInfo* theUser, std::string& message);
+	//void sendToClient(UserInfo* theUser, std::string& message);
+	void sendToClient(UserInfo* theUser, std::string & message, const int& messageId, int& packetLength);
 	void sendToRoom(std::string& roomName, std::string& message);
 	void sendToServer(SOCKET* theSocket, std::string& message);
 
@@ -31,6 +32,9 @@ public:
 
 	void closeRoom(std::string& roomName);
 	void createMessage(std::string& message);
+
+	std::vector<std::string> CommunicationManager::getLobbyInfo();
+	int& getPacketSize(std::vector<std::string> theMassage);
 };
 
 #endif // !_Communication_Manager_HG_

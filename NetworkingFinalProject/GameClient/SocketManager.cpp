@@ -71,6 +71,10 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			this->theBuffer->WriteStringBE(theMessage[0]);
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
+			this->theBuffer->WriteInt32BE(theMessage[2].size());
+			this->theBuffer->WriteStringBE(theMessage[2]);
+			this->theBuffer->WriteInt32BE(theMessage[3].size());
+			this->theBuffer->WriteStringBE(theMessage[3]);
 		}
 		else if (theMessage[0] == "VIEW" || theMessage[0] == "view")
 		{
@@ -186,15 +190,22 @@ std::vector<std::string>& SocketManager::parseMessage(int& bytesReceived)
 				theMessages.push_back(message);
 				return theMessages;
 			}
-			if (tempHeader->message_id == 2)//refresh should give list lobbies
+			else if (tempHeader->message_id == 2)//refresh should give list lobbies
 			{
 				parseStringBySpace(theMessages,message);
 			}
-			if (tempHeader->message_id == 3)//view the game lobby list 
+			else if (tempHeader->message_id == 3)//view the game lobby list 
 			{
 				//string split on spaces and get the data
 				parseStringBySpace(theMessages, message);
 			}
+			else if (tempHeader->message_id == 7) {
+				
+			}
+			else if (tempHeader->message_id == 10) {
+				//simple message
+			}
+
 			return theMessages;
 		}
 	}
