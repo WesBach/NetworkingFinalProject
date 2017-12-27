@@ -174,6 +174,28 @@ void CommunicationManager::leaveLobby(UserInfo* theUser, std::string& lobbyName)
 
 }
 
-void createLobby(UserInfo* theUser, std::string& mapName, std::string& mode, std::string& gameMode) {
+void CommunicationManager::createLobby(UserInfo* theUser, std::string& mapName, std::string& lobbyName, std::string& gameMode) {
+	//populate the new lobby
+	GameLobby* theLobby = new GameLobby();
+	theLobby->gameMode = gameMode;
+	theLobby->hostName = theUser->userName;
+	theLobby->mapName = mapName;
+	theLobby->lobbyName = lobbyName;
 
+	std::string lobbyExists = "This lobby name is already taken! Please try again.";
+
+	//check to see if the lobby name is already taken
+	for (int i = 0; i < this->theLobbies.size(); i++)
+	{
+		if (theLobby->lobbyName == this->theLobbies[i]->lobbyName)
+		{
+			//lobby already exists
+			sendToClient(theUser, lobbyExists);
+			return;
+		}
+	}
+
+	//lobby doesnt exist so create it
+	this->theLobbies.push_back(theLobby);
+	theLobby->numCurPlayers++;
 }
