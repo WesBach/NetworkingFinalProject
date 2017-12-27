@@ -25,7 +25,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 	if (theMessage.size() >= 1)
 	{
 		//create buffer with the correct size
-		this->theBuffer->resizeBuffer(this->getPacketSize(theMessage));
+		this->theBuffer->resizeBuffer(this->getPacketSize(theMessage) + 8);
 
 		//id = 1
 		if (theMessage[0] == "REGISTER" || theMessage[0] == "register")

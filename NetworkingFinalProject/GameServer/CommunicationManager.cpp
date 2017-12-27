@@ -18,6 +18,12 @@ CommunicationManager::~CommunicationManager()
 //Return:		void 
 void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message,const int& messageId,int& packetLength)
 {
+	//create the new buffer with its new size(+8 is for leading two ints)
+	this->theBuffer = new Buffer(packetLength + 8);
+	//add the packet length and id to the buffer
+	this->theBuffer->WriteInt32BE(messageId);
+	this->theBuffer->WriteInt32BE(packetLength);
+	//add the message to the buffer
 	createMessage(message);
 
 	int res = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
@@ -32,7 +38,6 @@ void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message
 //Return:		void 
 void CommunicationManager::createMessage(std::string& message) {
 	//creates a simple message with its length and message
-	this->theBuffer = new Buffer();
 	this->theBuffer->WriteInt32BE(message.size());
 	this->theBuffer->WriteStringBE(message);
 }
@@ -50,7 +55,7 @@ void CommunicationManager::sendToRoom(std::string& roomName, std::string& messag
 			//send the message to every player in the lobby
 			for (int clientIndex = 0; clientIndex < theLobbies[i]->thePlayers.size(); clientIndex++)
 			{
-				sendToClient(theLobbies[i]->thePlayers[clientIndex], message,7,getPacketSize(theMessages));
+				sendToClient(theLobbies[i]->thePlayers[clientIndex], message,10,getPacketSize(theMessages));
 			}
 		}
 	}
@@ -140,6 +145,12 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				//get all the lobby info and send it back
 				std::vector<std::string> theLobbyInfo = this->getLobbyInfo();
 
+				//TODO::
+				//Add the strings to the buffer and send the message
+
+				//write id and packet size
+				this->theBuffer->WriteInt32BE(4);
+				this->theBuffer->WriteInt32BE(getPacketSize(theLobbyInfo));
 				
 				
 			}
@@ -315,8 +326,14 @@ int& CommunicationManager::getPacketSize(std::vector<std::string> theMessage) {
 	}
 	else
 	{
-		commandLength = theMessage[0].size();
-		tempSize = commandLength + 4;
+		//accumulate all the sizes 
+		for (int i = 0; i < theMessage.size(); i++)
+		{
+			tempSize += theMessage[i].size();
+		}
+
+		//get the sizes for the integers written in between as well
+		tempSize += theMessage.size() * 4;
 		return tempSize;
 	}
 
