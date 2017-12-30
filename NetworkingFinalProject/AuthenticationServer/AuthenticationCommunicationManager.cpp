@@ -1,16 +1,21 @@
 #include "AuthenticationCommunicationManager.h"
 #include "UserInfo.h"
 #include "Buffer.h"
+#include "SQLManager.h"
 
 #include <WinSock2.h>
 #include <iostream>
 
 AuthenticationCommunicationManager::AuthenticationCommunicationManager()
 {
+	this->theBuffer = new Buffer();
+	this->theSQLManager = new SQLManager();
 }
 
 AuthenticationCommunicationManager::~AuthenticationCommunicationManager()
 {
+	delete this->theBuffer;
+	delete this->theSQLManager;
 }
 
 
@@ -56,4 +61,47 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 void AuthenticationCommunicationManager::sendMessage(UserInfo* theUser) {
 
 }
+
+std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(std::string & email, std::string & password)
+{
+	std::pair<bool, std::string> results(false, "");
+	//check to see if user already exists
+	//find the user by it's email
+	std::string selectUserByEmail = "SELECT * FROM accounts WHERE email ='" + email + "';";
+	sql::ResultSet* userResult = this->theSQLManager->executeSelect(selectUserByEmail);
+
+	//if it does exist return false
+	if (userResult->next())
+	{
+		results.first = false;
+		results.second = "User already exists!";
+		return results;
+	}
+	else
+	{
+		//get salt
+		//create the salt 
+		std::string salt = createSalt();
+		//add the salt to the password
+		std::string tempPass = password + salt;
+		//hash the password
+
+		//add the user to the db
+
+	}
+
+	return results;
+}
+
+std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUser(std::string & email, std::string & password)
+{
+	std::pair<bool, std::string> results(false,"");
+	//authenticate user with email and password
+	std::string selectUserByEmail = "SELECT * FROM accounts WHERE email ='" + email + "';";
+	sql::ResultSet* userResult = this->theSQLManager->executeSelect(selectUserByEmail);
+
+
+	return results;
+}
+
 

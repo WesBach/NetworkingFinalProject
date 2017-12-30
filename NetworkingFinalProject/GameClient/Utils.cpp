@@ -91,15 +91,13 @@ void ReadFileToToken(std::ifstream &file, std::string token)
 	std::string garbage;
 	do
 	{
-		file >> garbage;		// Title_End??
+		//parse the file from top to bottom looking for our token
+		file >> garbage;
+		//find the token we are looking for
 		if (garbage == token)
 		{
 			return;
 		}
 	} while (bKeepReading);
 	return;
-}
-
-int getRandRequestId() {
-
 }

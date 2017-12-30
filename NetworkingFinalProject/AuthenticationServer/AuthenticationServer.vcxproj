@@ -155,12 +155,14 @@
     <ClCompile Include="AuthenticationCommunicationManager.cpp" />
     <ClCompile Include="Buffer.cpp" />
     <ClCompile Include="authServerMain.cpp" />
+    <ClCompile Include="OpenSSLUtilites.cpp" />
     <ClCompile Include="SQLManager.cpp" />
     <ClCompile Include="UserInfo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AuthenticationCommunicationManager.h" />
     <ClInclude Include="Buffer.h" />
+    <ClInclude Include="OpenSSLUtilities.h" />
     <ClInclude Include="SQLManager.h" />
     <ClInclude Include="UserInfo.h" />
   </ItemGroup>
