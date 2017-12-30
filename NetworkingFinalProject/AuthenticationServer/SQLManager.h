@@ -15,6 +15,7 @@ public:
 
 	bool execute(const std::string& statement);
 	int executeUpdate(const std::string& statement);
+	sql::ResultSet* executeSelect(const std::string& statement);
 private:
 	sql::Statement* statement;
 	sql::PreparedStatement* prepState;
