@@ -3,6 +3,7 @@
 #include <openssl\evp.h>
 #include <openssl\err.h>
 #include <openssl\sha.h>
+#include <cstdlib>
 SHA256_CTX ctx;
 
 static const char alphaNumeric[] =
@@ -10,9 +11,7 @@ static const char alphaNumeric[] =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 "abcdefghijklmnopqrstuvwxyz";
 
-
-
-static std::string hashPassword(char* pass) {
+static std::string hashPassword(const char* pass) {
 	//use sha_256 to generate a hash of the passed in string
 	unsigned char digest[SHA256_DIGEST_LENGTH];
 

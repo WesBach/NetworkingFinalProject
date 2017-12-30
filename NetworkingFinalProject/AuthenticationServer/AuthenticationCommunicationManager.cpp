@@ -58,9 +58,13 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 	}
 }
 
-
 void AuthenticationCommunicationManager::sendMessage(UserInfo* theUser) {
-
+	int sendResult = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	//check for error
+	if (sendResult == SOCKET_ERROR)
+	{
+		printf("Send failed with error: %s", sendResult);
+	}
 }
 
 std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(std::string & email, std::string & password)
@@ -75,7 +79,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(st
 	if (userResult->next())
 	{
 		results.first = false;
-		results.second = "User already exists!";
+		results.second = "Account creation failed: User already exists!";
 		return results;
 	}
 	else
@@ -86,8 +90,24 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(st
 		//add the salt to the password
 		std::string tempPass = password + salt;
 		//hash the password
-
+		std::string password = hashPassword(tempPass.c_str());
 		//add the user to the db
+		std::string insert = "INSERT INTO accounts (email,salt,password,last_login) values('" + email + "','" + salt +"','" + password + ",NOW()');";
+
+		bool success = this->theSQLManager->execute(insert);
+
+		if (success)
+		{
+			//succeeded
+			results.first = true;
+			results.second = "Successfully created account!";
+			return results;
+		}
+		else {
+			results.first = false;
+			results.second = "Account creation failed: Server Error!";
+			return results;
+		}
 
 	}
 
@@ -98,9 +118,43 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUse
 {
 	std::pair<bool, std::string> results(false,"");
 	//authenticate user with email and password
+
 	std::string selectUserByEmail = "SELECT * FROM accounts WHERE email ='" + email + "';";
 	sql::ResultSet* userResult = this->theSQLManager->executeSelect(selectUserByEmail);
 
+	if (userResult->rowsCount == 1)
+	{
+		//set it to the first item
+		userResult->next();
+		//get the user salt
+		std::string salt = userResult->getString("salt").c_str();
+		//get the user hash
+		std::string storedHash = userResult->getString("hashed_password").c_str();
+
+		std::string tempPass = password + salt;
+		//hash the password
+		std::string hashedPassword = hashPassword((char*)tempPass.c_str());
+
+		if (storedHash == hashedPassword)
+		{
+
+			results.first = true;
+			results.second = "Account authentication Success!";
+			return results;
+		}
+		else{
+
+			results.first = false;
+			results.second = "Account authentication failed: Invalid Password!";
+			return results;
+		}
+
+	}
+	else {
+		results.first = false;
+		results.second = "Account authentication failed: Account doesnt exist!";
+		return results;
+	}
 
 	return results;
 }
