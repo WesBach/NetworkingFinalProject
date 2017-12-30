@@ -151,11 +151,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AuthenticationCommunicationManager.cpp" />
     <ClCompile Include="Buffer.cpp" />
     <ClCompile Include="authServerMain.cpp" />
     <ClCompile Include="SQLManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AuthenticationCommunicationManager.h" />
     <ClInclude Include="Buffer.h" />
     <ClInclude Include="SQLManager.h" />
   </ItemGroup>
