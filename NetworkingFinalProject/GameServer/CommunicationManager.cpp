@@ -14,9 +14,21 @@ CommunicationManager::~CommunicationManager()
 }
 
 //Name:			sendToClient
+//Purpose:		Sends the populated buffer to the client.
+//Return:		void 
+void CommunicationManager::sendToClient(UserInfo* theUser)
+{
+	int res = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
+	if (res == SOCKET_ERROR)
+	{
+		printf("Send failed with error: %ld\n", res);
+	}
+}
+
+//Name:			sendToClient
 //Purpose:		Populates the buffer with the message and sends it to the client.
 //Return:		void 
-void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message,const int& messageId,int& packetLength)
+void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message, const int& messageId, int& packetLength)
 {
 	//create the new buffer with its new size(+8 is for leading two ints)
 	this->theBuffer = new Buffer(packetLength + HEADER_SIZE);
@@ -55,7 +67,7 @@ void CommunicationManager::sendToRoom(std::string& roomName, std::string& messag
 			//send the message to every player in the lobby
 			for (int clientIndex = 0; clientIndex < theLobbies[i]->thePlayers.size(); clientIndex++)
 			{
-				sendToClient(theLobbies[i]->thePlayers[clientIndex], message,10,getPacketSize(theMessages));
+				sendToClient(theLobbies[i]->thePlayers[clientIndex], message, 10, getPacketSize(theMessages));
 			}
 		}
 	}
@@ -64,11 +76,7 @@ void CommunicationManager::sendToRoom(std::string& roomName, std::string& messag
 //Name:			sendToServer
 //Purpose:		Populates the buffer with the message and send the packet to the server.
 //Return:		void 
-void CommunicationManager::sendToServer(SOCKET* theSocket, std::string& message) {
-	//TODO::
-	//May have to change this for different behavior
-	createMessage(message);
-
+void CommunicationManager::sendToServer(SOCKET* theSocket) {
 	int res = send(*theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
 	if (res == SOCKET_ERROR)
 	{
@@ -91,7 +99,7 @@ void CommunicationManager::closeRoom(std::string& roomName) {
 			//send the message to every player in the lobby
 			for (int clientIndex = 0; clientIndex < (*it)->thePlayers.size(); clientIndex++)
 			{
-				sendToClient((*it)->thePlayers[clientIndex], message,10,getPacketSize(theMessages));
+				sendToClient((*it)->thePlayers[clientIndex], message, 10, getPacketSize(theMessages));
 			}
 			//clear the vector
 			(*it)->thePlayers.clear();
@@ -105,6 +113,8 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 
 	theUser.userBuffer->clearBuffer();
 	theUser.userBuffer->resizeBuffer(512);
+	//for getting packet length
+	std::vector<std::string> tempVector;
 
 	int bytesReceived = recv(*theUser.userSocket, theUser.userBuffer->getBufferAsCharArray(), theUser.userBuffer->GetBufferLength() + 1, 0);
 	if (bytesReceived >= 4)
@@ -113,63 +123,86 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 		int packetLength = theUser.userBuffer->ReadInt32BE();
 
 		//if the entire packet arrived otherwise do nothing
-		if (bytesReceived  >= packetLength)
+		if (bytesReceived >= packetLength)
 		{
 			//read the rest of the info
 			int commandId = theUser.userBuffer->ReadInt32BE();
 			int commandLength = theUser.userBuffer->ReadInt32BE();
-			std::string command = theUser.userBuffer->ReadStringBE(commandLength);
 
-			//clear the buffer and resize 
+			//clear the buffer and resize before populating it again
 			this->theBuffer->clearBuffer();
 			this->theBuffer->resizeBuffer(512);
 
 			if (commandId == 1) {
 				//Register
-		
+
+				//copy the buffer and send it
+				this->theBuffer = theUser.userBuffer;
+
+				//TODO:
+				//Popualte the server socket immediately after connecting
+				this->sendToServer(this->theServerSocket);
 			}
 			else if (commandId == 2) {
 				//Authenticate
-				//send info to the auth server
+				//copy the buffer and send it
+				this->theBuffer = theUser.userBuffer;
+				this->sendToServer(this->theServerSocket);
 			}
 			else if (commandId == 3) {
-				//Create the server with a name mode and map
+				//Create the server with a name, mode,map and playernumber
+				//get the map name
 				int mapLength = theUser.userBuffer->ReadInt32BE();
 				std::string map = theUser.userBuffer->ReadStringBE(mapLength);
-
+				//get the game mode 
 				int modeLength = theUser.userBuffer->ReadInt32BE();
 				std::string gameMode = theUser.userBuffer->ReadStringBE(modeLength);
-
+				//get the lobby name
 				int lobbyLength = theUser.userBuffer->ReadInt32BE();
 				std::string lobbyName = theUser.userBuffer->ReadStringBE(lobbyLength);
-
-				this->createLobby(&theUser,map,gameMode,lobbyName);
+				//get the number of players allowed
+				int playerNumLength = theUser.userBuffer->ReadInt32BE();
+				std::string playerNum = theUser.userBuffer->ReadStringBE(playerNumLength);
+				//create the lobby
+				this->createLobby(&theUser, map, gameMode, lobbyName);
 			}
 			else if (commandId == 4) {
 				//VIEW
 				//get all the lobby info and send it back
-				std::vector<std::string> theLobbyInfo = this->getLobbyInfo();
-
-				//TODO::
-				//Add the strings to the buffer and send the message
+				tempVector = this->getLobbyInfo();
 
 				//write id and packet size
-				
 				this->theBuffer->WriteInt32BE(4);
-				this->theBuffer->WriteInt32BE(getPacketSize(theLobbyInfo));			
+				this->theBuffer->WriteInt32BE(getPacketSize(tempVector) + HEADER_SIZE);
+
+				//write the lobby info
+				for (int i = 0; i < tempVector.size(); i++)
+				{
+					this->theBuffer->WriteInt32BE(tempVector[i].size());
+					this->theBuffer->WriteStringBE(tempVector[i]);
+				}
+
+				//send the lobby info back
+				this->sendToClient(&theUser);
 			}
 			else if (commandId == 5)
 			{
 				//REFRESH
-				std::vector<std::string> theLobbyInfo = this->getLobbyInfo();
-
-				//TODO::
-				//Add the strings to the buffer and send the message
+				tempVector = this->getLobbyInfo();
 
 				//write id and packet size
-
 				this->theBuffer->WriteInt32BE(4);
-				this->theBuffer->WriteInt32BE(getPacketSize(theLobbyInfo));
+				this->theBuffer->WriteInt32BE(getPacketSize(tempVector) + HEADER_SIZE);
+
+				//write the lobby info
+				for (int i = 0; i < tempVector.size(); i++)
+				{
+					this->theBuffer->WriteInt32BE(tempVector[i].size());
+					this->theBuffer->WriteStringBE(tempVector[i]);
+				}
+
+				//send the lobby info back
+				this->sendToClient(&theUser);
 			}
 			else if (commandId == 6) {
 				//JOIN
@@ -195,7 +228,7 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 	//search through the lobbies
 	std::string theFullMessage = lobbyName + " is currently full!";
 	std::string theFailureMessage = lobbyName + " does not exist!";
-	std::string userJoinedTheRoom = theUser->userName +" joined the room!";
+	std::string userJoinedTheRoom = theUser->userName + " joined the room!";
 	std::string successfullyJoinedTheRoom = "You have successfully joined the room!";
 
 	std::vector<std::string> theMessages;
@@ -222,7 +255,7 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 			else {
 				//send the failure message
 				theMessages.push_back(theFullMessage);
-				sendToClient(theUser, theFullMessage,10,getPacketSize(theMessages));
+				sendToClient(theUser, theFullMessage, 10, getPacketSize(theMessages));
 				return;
 			}
 		}
@@ -230,7 +263,7 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 
 	//didnt find the lobby 
 	theMessages.push_back(theFailureMessage);
-	sendToClient(theUser, theFailureMessage, 10,this->getPacketSize(theMessages));
+	sendToClient(theUser, theFailureMessage, 10, this->getPacketSize(theMessages));
 }
 
 void CommunicationManager::leaveLobby(UserInfo* theUser, std::string& lobbyName) {
@@ -255,7 +288,7 @@ void CommunicationManager::leaveLobby(UserInfo* theUser, std::string& lobbyName)
 			//send a message to the people in the lobby
 			for (int playerIndex = 0; playerIndex < this->theLobbies[i]->thePlayers.size(); playerIndex++)
 			{
-				sendToClient(this->theLobbies[i]->thePlayers[playerIndex], tempMessage,10,getPacketSize(theMessages));
+				sendToClient(this->theLobbies[i]->thePlayers[playerIndex], tempMessage, 10, getPacketSize(theMessages));
 			}
 		}
 	}
@@ -279,7 +312,7 @@ void CommunicationManager::createLobby(UserInfo* theUser, std::string& mapName, 
 		if (theLobby->lobbyName == this->theLobbies[i]->lobbyName)
 		{
 			//lobby already exists
-			sendToClient(theUser, lobbyExists,10,getPacketSize(theMessages));
+			sendToClient(theUser, lobbyExists, 10, getPacketSize(theMessages));
 			return;
 		}
 	}
@@ -294,18 +327,18 @@ std::vector<std::string> CommunicationManager::getLobbyInfo() {
 	std::vector<std::string> theLobbyInfo;
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
-		lobbyInfo = "";
+		lobbyInfo = "//";
 		//Id	Map Name	Lobby Name			Game Mode		Players		Host
 		//3		New York	Test your might!	Free For All	2|6			sous_chief
 		lobbyInfo = this->theLobbies[i]->mapName;
-		lobbyInfo += " " + this->theLobbies[i]->lobbyName;
-		lobbyInfo += " " + this->theLobbies[i]->gameMode;
-		lobbyInfo += " " + this->theLobbies[i]->numCurPlayers;
+		lobbyInfo += " || " + this->theLobbies[i]->lobbyName;
+		lobbyInfo += " || " + this->theLobbies[i]->gameMode;
+		lobbyInfo += " || " + this->theLobbies[i]->numCurPlayers;
 		lobbyInfo += "/" + this->theLobbies[i]->numSpots;
-		lobbyInfo += "/" + this->theLobbies[i]->hostName;
+		lobbyInfo += " || " + this->theLobbies[i]->hostName;
+		lobbyInfo += "//";
 		theLobbyInfo.push_back(lobbyInfo);
 	}
-
 	return theLobbyInfo;
 }
 
@@ -314,40 +347,15 @@ std::vector<std::string> CommunicationManager::getLobbyInfo() {
 //Purpose:		Determines the final size of the packet based on its items. With pre determined lenght prefixing.
 //Return:		int&
 int& CommunicationManager::getPacketSize(std::vector<std::string> theMessage) {
-	int commandLength = 0;
-	int firstTextSize = 0;
-	int secondTextSize = 0;
 	int tempSize = 0;
 
-	if (theMessage.size() == 2)
+	//accumulate all the sizes 
+	for (int i = 0; i < theMessage.size(); i++)
 	{
-		commandLength = theMessage[0].size();
-		firstTextSize = theMessage[1].size();
-		secondTextSize = theMessage[2].size();
-		//12 is for the 3 lengths being written in from the messages. 3 ints = 12 bytes;
-		tempSize = commandLength + firstTextSize + secondTextSize + 12;
-		return  tempSize;
-	}
-	else if (theMessage.size() == 1)
-	{
-		commandLength = theMessage[0].size();
-		firstTextSize = theMessage[1].size();
-		//12 is for the 3 lengths being written in fron of the messages. 2 ints = 8 bytes;
-		tempSize = commandLength + firstTextSize + 8;
-		return  tempSize;
-	}
-	else
-	{
-		//accumulate all the sizes 
-		for (int i = 0; i < theMessage.size(); i++)
-		{
-			tempSize += theMessage[i].size();
-		}
-
-		//get the sizes for the integers written in between as well
-		tempSize += theMessage.size() * 4;
-		return tempSize;
+		tempSize += theMessage[i].size();
 	}
 
+	//get the sizes for the integers written in between as well
+	tempSize += theMessage.size() * 4;
 	return tempSize;
 }

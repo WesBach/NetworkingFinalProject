@@ -255,29 +255,27 @@ std::string& keyboardInput(std::string& input) {
 
 	//check to see if messages are being received
 	g_ptheManager->receiveMessage(g_screenInfo);
-
 	return input;
 }
 
-std::vector<std::string> populateCommands(std::string& commands,const int& numCommands) {
+std::vector<std::string> populateCommands(std::string& commands,const int& numCommands) {	
+	std::string tempString = "";
 	std::vector<std::string> theCommands;
-	std::string command = "";
-	std::string message = "";
-
-	if (numCommands == 1)
+	//parse the string for commands and password
+	for (int i = 0; i < commands.size(); i++)
 	{
-		theCommands.push_back(commands);
-		return theCommands;
-	}
-	else {
-		//get the command and the message
-		command = commands.substr(0, 2);
-		message = commands.substr(3, commands.size() - 3);
-		theCommands.push_back(command);
-		theCommands.push_back(message);
-		return theCommands;
+		//if its a space skip
+		if (commands[i] != ' ')
+		{
+			tempString += commands[i];
+		}
+		else {
+
+			theCommands.push_back(tempString);
+			//clear the string 
+			tempString = "";
+		}
 	}
 
 	return theCommands;
 }
-

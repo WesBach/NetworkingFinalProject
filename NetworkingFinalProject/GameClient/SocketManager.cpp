@@ -37,11 +37,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			//message id
 			this->theBuffer->WriteInt32BE(1);
-			//command length
-			this->theBuffer->WriteInt32BE(theMessage[0].size());
-			//command
-			this->theBuffer->WriteStringBE(theMessage[0]);
-			//emai length
+			//email length
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			//email
 			this->theBuffer->WriteStringBE(theMessage[1]);
@@ -56,8 +52,6 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			//2. authenticate an account. (2 marks)
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(2);
-			this->theBuffer->WriteInt32BE(theMessage[0].size());
-			this->theBuffer->WriteStringBE(theMessage[0]);
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
 			this->theBuffer->WriteInt32BE(theMessage[2].size());
@@ -69,9 +63,6 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			//3. Create a game lobby. (2 marks)
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(3);
-			//map name
-			this->theBuffer->WriteInt32BE(theMessage[0].size());
-			this->theBuffer->WriteStringBE(theMessage[0]);
 			//game mode 
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
@@ -87,19 +78,15 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			//id = 4
 			//4. View the game lobby list. (3 mark)
 			//write packet length first
-			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
+			this->theBuffer->WriteInt32BE(HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(4);
-			this->theBuffer->WriteInt32BE(theMessage[0].size());
-			this->theBuffer->WriteStringBE(theMessage[0]);
 		}
 		else if (theMessage[0] == "REFRESH" || theMessage[0] == "refresh")
 		{
 			//id = 5
 			//5. Refresh the game lobby list.This can be done automatically, or by client
-			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
+			this->theBuffer->WriteInt32BE(HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(5);
-			this->theBuffer->WriteInt32BE(theMessage[0].size());
-			this->theBuffer->WriteStringBE(theMessage[0]);
 		}
 		else if (theMessage[0] == "JOIN" || theMessage[0] == "join")
 		{
@@ -107,8 +94,6 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			//6. Join the game lobby
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(6);
-			this->theBuffer->WriteInt32BE(theMessage[0].size());
-			this->theBuffer->WriteStringBE(theMessage[0]);
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
 		}
@@ -119,8 +104,6 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			this->theBuffer->resizeBuffer(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
 			this->theBuffer->WriteInt32BE(7);
-			this->theBuffer->WriteInt32BE(theMessage[0].size());
-			this->theBuffer->WriteStringBE(theMessage[0]);
 		}
 	}
 

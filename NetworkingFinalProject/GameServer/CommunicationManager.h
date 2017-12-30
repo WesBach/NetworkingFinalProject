@@ -15,7 +15,7 @@ public:
 	~CommunicationManager();
 
 	Buffer* theBuffer;
-
+	SOCKET* theServerSocket;
 	//map of lobbies with the users
 	std::vector<GameLobby*> theLobbies;
 
@@ -25,8 +25,10 @@ public:
 
 	//void sendToClient(UserInfo* theUser, std::string& message);
 	void sendToClient(UserInfo* theUser, std::string & message, const int& messageId, int& packetLength);
+	void sendToClient(UserInfo* theUser);
+
 	void sendToRoom(std::string& roomName, std::string& message);
-	void sendToServer(SOCKET* theSocket, std::string& message);
+	void sendToServer(SOCKET* theSocket);
 
 	void recieveMessage(UserInfo& theUser);
 
