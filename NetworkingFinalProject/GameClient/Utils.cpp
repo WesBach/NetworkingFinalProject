@@ -99,3 +99,7 @@ void ReadFileToToken(std::ifstream &file, std::string token)
 	} while (bKeepReading);
 	return;
 }
+
+int getRandRequestId() {
+
+}

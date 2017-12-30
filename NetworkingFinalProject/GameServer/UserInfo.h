@@ -11,7 +11,9 @@ public:
 	~UserInfo();
 	SOCKET* userSocket;
 	Buffer* userBuffer;
-	std::vector<int> requests;
+
+	//holds the current requests for the user
+	std::vector<unsigned int> requests;
 
 	bool isLobbyHost;
 	std::string currentLobby;

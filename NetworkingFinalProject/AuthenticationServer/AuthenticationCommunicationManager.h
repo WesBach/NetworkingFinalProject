@@ -12,7 +12,6 @@ public:
 
 	Buffer* theBuffer;
 
-
 	void receiveMessage(UserInfo* theUser);
 	void sendMessage(UserInfo* theUser);
 };

@@ -25,6 +25,10 @@ public:
 	SOCKET* theSocket;
 	std::vector<int> requestIds;
 
+	//will be int the range of (1 to 1000) * 100;
+	int requestIdMin;
+	//will be 1000 more than min
+	int requestIdMax;
 
 	int& getPacketSize(std::vector<std::string> theMassage);
 	void buildMessage(std::vector<std::string>& theMessage);
@@ -32,6 +36,8 @@ public:
 	std::vector<std::string> parseMessage(int& bytesReceived );
 	void receiveMessage(std::vector<std::string>& theScreenInfo);
 	std::vector<std::string>& parseStringBySpace(std::vector<std::string>& container, std::string& message);
+
+	void setMinMax();
 };
 
 #endif // 

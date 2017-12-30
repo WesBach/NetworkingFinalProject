@@ -3,6 +3,7 @@
 #include "UserInfo.h"
 #include "GameLobby.h"
 #define HEADER_SIZE 8
+
 CommunicationManager::CommunicationManager()
 {
 	this->theBuffer = new Buffer();
@@ -135,18 +136,51 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 
 			if (commandId == 1) {
 				//Register
+				
+				//get alld theinfo from the user buffer
+				int requestId = theUser.userBuffer->ReadInt32BE();
 
-				//copy the buffer and send it
-				this->theBuffer = theUser.userBuffer;
+				//add the request id to the users vector for later use
+				theUser.requests.push_back(requestId);
 
+				int emailLength = theUser.userBuffer->ReadInt32BE();
+				std::string email = theUser.userBuffer->ReadStringBE(emailLength);
+				int passLength = theUser.userBuffer->ReadInt32BE();
+				std::string password = theUser.userBuffer->ReadStringBE(passLength);
+
+				//write the data to the server buffer and send it 
+				this->theBuffer->WriteInt32BE(packetLength);
+				this->theBuffer->WriteInt32BE(commandId);
+				this->theBuffer->WriteInt32BE(requestId);
+				this->theBuffer->WriteInt32BE(emailLength);
+				this->theBuffer->WriteStringBE(email);
+				this->theBuffer->WriteInt32BE(passLength);
+				this->theBuffer->WriteStringBE(password);
 				//TODO:
 				//Popualte the server socket immediately after connecting
 				this->sendToServer(this->theServerSocket);
 			}
 			else if (commandId == 2) {
 				//Authenticate
-				//copy the buffer and send it
-				this->theBuffer = theUser.userBuffer;
+				//get all the info from the user buffer
+				int requestId = theUser.userBuffer->ReadInt32BE();
+
+				//add the request id to the users vector for later use
+				theUser.requests.push_back(requestId);
+
+				int emailLength = theUser.userBuffer->ReadInt32BE();
+				std::string email = theUser.userBuffer->ReadStringBE(emailLength);
+				int passLength = theUser.userBuffer->ReadInt32BE();
+				std::string password = theUser.userBuffer->ReadStringBE(passLength);
+
+				//write the data to the server buffer and send it 
+				this->theBuffer->WriteInt32BE(packetLength);
+				this->theBuffer->WriteInt32BE(commandId);
+				this->theBuffer->WriteInt32BE(requestId);
+				this->theBuffer->WriteInt32BE(emailLength);
+				this->theBuffer->WriteStringBE(email);
+				this->theBuffer->WriteInt32BE(passLength);
+				//send the message
 				this->sendToServer(this->theServerSocket);
 			}
 			else if (commandId == 3) {

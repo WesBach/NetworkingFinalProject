@@ -28,14 +28,25 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 		{
 			//get the message id 
 			int id = theUser->userBuffer->ReadInt32BE();
-			//register
-			if (id == 20)
-			{
+			//get the info from the buffer
 
+			int requestId = theUser->userBuffer->ReadInt32BE();
+			int emailLength = theUser->userBuffer->ReadInt32BE();
+			std::string email = theUser->userBuffer->ReadStringBE(emailLength);
+			int passLength = theUser->userBuffer->ReadInt32BE();
+			std::string password = theUser->userBuffer->ReadStringBE(passLength);
+		
+
+
+			if (id == 1)
+			{
+				//register
+				this->registerUser(email, password);
 			}
-			else if (id == 21)//authenticate
+			else if (id == 2)
 			{
-
+				//authenticate
+				this->authenticateUser(email, password);
 			}
 		}
 	}

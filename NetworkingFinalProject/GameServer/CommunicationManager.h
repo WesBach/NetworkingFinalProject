@@ -16,6 +16,7 @@ public:
 
 	Buffer* theBuffer;
 	SOCKET* theServerSocket;
+	
 	//map of lobbies with the users
 	std::vector<GameLobby*> theLobbies;
 
