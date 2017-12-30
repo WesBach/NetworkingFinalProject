@@ -19,6 +19,10 @@ void Buffer::resizeBuffer(size_t size) {
 	this->mBuffer.resize(size);
 }
 
+void Buffer::clearBuffer() {
+	this->mBuffer.clear();
+}
+
 //std::vector<uint8_t> Buffer::getBuffer()
 //{
 //	return mBuffer;

@@ -19,12 +19,11 @@
 #define DEFAULT_AUTHENTICATION_PORT "6000"	//was 8899
 
 //Globel variables
-enum message_ID { JOINROOM, LEAVEROOM, SENDMESSAGE, RECEIVEMESSAGE };
 std::map<char, std::vector<UserInfo*>> roomMap;
 std::vector<UserInfo*> usersInServer;
+
 fd_set master;
 SOCKET ListeningSocket;
-Buffer* g_theBuffer = new Buffer();
 //socket info structure to store all the individual socket information
 int initListening();
 CommunicationManager* theManager = new CommunicationManager();
@@ -33,10 +32,10 @@ UserInfo* getClientFromVector(SOCKET& theSock);
 int main() {
 	//zero out master
 	FD_ZERO(&master);
-	FD_SET(ListeningSocket, &master);
-
 	//start listening
 	initListening();
+
+	FD_SET(ListeningSocket, &master);
 
 	bool serverRunning = true;
 	bool authServerConnected = false;
@@ -82,21 +81,18 @@ int main() {
 
 					// Send a welcome message to the connected client
 					std::string connectionMessage = "You are now connected to the chat server!";
-					//send(client, welcomeMsg.c_str(), welcomeMsg.size() + 1, 0);
-					theManager->sendToClient(newUser, connectionMessage);
+					int packSize = connectionMessage.size() + 4;
+					theManager->sendToClient(newUser, connectionMessage,10, packSize);
 				}
 				else {
-					UserInfo* currInfo = getClientFromVector(sock);
-					currInfo->userBuffer = new Buffer();
+					UserInfo* currInfo = getClientFromVector(sock);					
 
 					theManager->recieveMessage(*currInfo);
 				}
 
 			}//end for
 		}//end if(socketCount > 0)
-
 	}
-
 }
 
 int initListening() {

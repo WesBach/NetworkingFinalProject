@@ -9,9 +9,14 @@
 #define DEFAULT_PORT "5000"
 #pragma comment (lib, "Ws2_32.lib")
 
+//globals
 SocketManager* g_ptheManager;
 std::vector<std::string> g_screenInfo;
+SOCKET ConnectSocket;
+bool run;
+std::map<std::string, std::vector<std::string>> gameInfo;
 
+//function declarations
 int connectToServer(std::string port);
 void setMainInstructions();
 void printScreen();
@@ -20,11 +25,16 @@ std::vector<std::string> populateCommands(std::string& commands,const int& numCo
 
 int main() {
 	//TODO:: Change this to take in an ip and port number
+	g_ptheManager = new SocketManager();
+
 	//1. Connect to the game server with an ip and port number(1 mark)
 	connectToServer(DEFAULT_PORT);
 	setMainInstructions();
 
-	bool run = true;
+
+	//run the loop
+	run = true;
+	//container for user input
 	std::string userInput;
 
 	while (run)
@@ -38,11 +48,15 @@ int main() {
 		print_text("%-75s", textOnScreen.c_str());
 		end_text();
 	}
+
+	//cleanup
+	closesocket(ConnectSocket);
+	WSACleanup();
 }
 
 int connectToServer(std::string port) {
 	WSADATA wsaData;
-	SOCKET ConnectSocket = INVALID_SOCKET;
+	ConnectSocket = INVALID_SOCKET;
 	struct addrinfo* result = NULL;
 	struct addrinfo* ptr = NULL;
 	struct addrinfo hints;
@@ -64,7 +78,7 @@ int connectToServer(std::string port) {
 	hints.ai_protocol = IPPROTO_TCP;
 
 	//get the address info 
-	iResult = getaddrinfo(NULL, port.c_str(), &hints, &result);
+	iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
 	if (iResult != 0) {
 		printf("getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
@@ -111,17 +125,49 @@ int connectToServer(std::string port) {
 }
 
 void setMainInstructions() {
+
+	gameInfo = getGameInfo("LobbyInfo.txt");
+	std::string tempString = "";
+
 	//display commands before loop
 	print_text("=======================================");
 	print_text("		Chat Commands:              ");
 	print_text("=======================================");
 	print_text("Register: REGISTER email password");
 	print_text("Authenticate: AUTHENTICATE email password");
-	print_text("Join Room: JR (a-z)");
-	print_text("Leave Room: LR (a-z)");
+	print_text("Join Room: JOIN lobbyname");
+	print_text("Leave Room: LEAVE");
 	print_text("View Lobbies: VIEW");
 	print_text("Refresh Lobbies: REFRESH");
-	print_text("Send Message: SM (followed by message)");
+	print_text("Create Lobbies: CREATE (Map Name, Game Mode, Lobby Name, Num Players)");
+	print_text("Create Options:");
+	print_text("===============");
+	//print the map names
+	print_text("MAPS");
+	for (int i = 0; i < gameInfo["MAPS"].size(); i++)
+		tempString += "(" + gameInfo["MAPS"][i]+")";
+	print_text(tempString.c_str());
+	tempString.clear();
+	//print game modes
+	print_text("GAME MODE");
+	for (int i = 0; i < gameInfo["GAMEMODE"].size(); i++)
+		tempString += "(" + gameInfo["GAMEMODE"][i] + ")";
+	print_text(tempString.c_str());
+	tempString.clear();
+
+	print_text("LOBBY NAME");
+	print_text("Your chosen Lobby Name");
+
+	//print num player options
+	print_text("NUM PLAYERS");
+	for (int i = 0; i < gameInfo["NUMPLAYERS"].size(); i++)
+		tempString += "(" + gameInfo["NUMPLAYERS"][i] + ")";
+	print_text(tempString.c_str());
+
+	
+
+
+
 }
 
 void printScreen()
@@ -135,12 +181,14 @@ void printScreen()
 
 std::string& keyboardInput(std::string& input) {
 
+	//index variables for string find
 	int joinRoomIndex = -1;
 	int leaveRoomIndex = -1;
 	int viewIndex = -1;
 	int refreshLobbiesIndex = -1;
 	int sendMessageIndex = -1;
-
+	int quitIndex = -1;
+	//vector to hold command and messages
 	std::vector<std::string> commands;
 
 	if (_kbhit()) {
@@ -154,7 +202,7 @@ std::string& keyboardInput(std::string& input) {
 				leaveRoomIndex = input.find("LR ");//Leave Room
 				viewIndex = input.find("VIEW"); //View lobbies
 				refreshLobbiesIndex = input.find("REFRESH");	//Refresh the lobbies
-
+				quitIndex = input.find("QUIT");
 
 				if (joinRoomIndex >= 0)
 				{
@@ -176,10 +224,14 @@ std::string& keyboardInput(std::string& input) {
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 1);
 				}
-				else if (refreshLobbiesIndex >= 0) 
+				else if (refreshLobbiesIndex >= 0)
 				{
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 1);
+				}
+				else if (quitIndex >= 0)
+				{
+					run = false;
 				}
 
 				//build the message and send it
@@ -191,16 +243,19 @@ std::string& keyboardInput(std::string& input) {
 
 			}
 		}
+		else if (c == '\b')
+		{
+			input = input.substr(0, input.length() - 1);
+		}
 		else
 		{
 			input += c;
 		}
-
-
-		//check to see if messages are being received
-		g_ptheManager->receiveMessage(g_screenInfo);
-
 	}
+
+	//check to see if messages are being received
+	g_ptheManager->receiveMessage(g_screenInfo);
+
 	return input;
 }
 

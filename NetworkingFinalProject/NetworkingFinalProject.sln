@@ -9,6 +9,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GameServer", "GameServer\Ga
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AuthenticationServer", "AuthenticationServer\AuthenticationServer.vcxproj", "{DBF08D1C-D21A-45D6-97B8-F1620BE3CC6D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7211B789-7193-4141-87A0-716143B989AB}"
+	ProjectSection(SolutionItems) = preProject
+		..\LobbyInfo.txt = ..\LobbyInfo.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

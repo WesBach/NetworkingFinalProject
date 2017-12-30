@@ -1,8 +1,10 @@
 #include "SocketManager.h"
 #include "Utility.h"
 
-SocketManager::SocketManager() {
+#define HEADER_SIZE 8
 
+SocketManager::SocketManager() {
+	this->theBuffer = new Buffer();
 }
 
 SocketManager::~SocketManager() {
@@ -25,14 +27,14 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 	if (theMessage.size() >= 1)
 	{
 		//create buffer with the correct size
-		this->theBuffer->resizeBuffer(this->getPacketSize(theMessage) + 8);
+		this->theBuffer->resizeBuffer(this->getPacketSize(theMessage) + HEADER_SIZE);
 
 		//id = 1
 		if (theMessage[0] == "REGISTER" || theMessage[0] == "register")
 		{
 			//2. Register an account. (2 marks)
 			//write packet size;
-			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			//message id
 			this->theBuffer->WriteInt32BE(1);
 			//command length
@@ -52,7 +54,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 2
 			//2. authenticate an account. (2 marks)
-			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(2);
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
 			this->theBuffer->WriteStringBE(theMessage[0]);
@@ -65,14 +67,18 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 3
 			//3. Create a game lobby. (2 marks)
-			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(3);
+			//map name
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
 			this->theBuffer->WriteStringBE(theMessage[0]);
+			//game mode 
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
+			//lobby name
 			this->theBuffer->WriteInt32BE(theMessage[2].size());
 			this->theBuffer->WriteStringBE(theMessage[2]);
+			//num players
 			this->theBuffer->WriteInt32BE(theMessage[3].size());
 			this->theBuffer->WriteStringBE(theMessage[3]);
 		}
@@ -80,6 +86,8 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 4
 			//4. View the game lobby list. (3 mark)
+			//write packet length first
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(4);
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
 			this->theBuffer->WriteStringBE(theMessage[0]);
@@ -88,6 +96,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 5
 			//5. Refresh the game lobby list.This can be done automatically, or by client
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(5);
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
 			this->theBuffer->WriteStringBE(theMessage[0]);
@@ -96,6 +105,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 6
 			//6. Join the game lobby
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(6);
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
 			this->theBuffer->WriteStringBE(theMessage[0]);
@@ -106,6 +116,8 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 7
 			//7. Leave the game lobby
+			this->theBuffer->resizeBuffer(this->getPacketSize(theMessage) + HEADER_SIZE);
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
 			this->theBuffer->WriteInt32BE(7);
 			this->theBuffer->WriteInt32BE(theMessage[0].size());
 			this->theBuffer->WriteStringBE(theMessage[0]);
@@ -136,34 +148,19 @@ int& SocketManager::getPacketSize(std::vector<std::string> theMessage) {
 	int secondTextSize = 0;
 	int tempSize = 0;
 
-	if (theMessage.size() == 2)
+	//accumulate all the sizes 
+	for (int i = 0; i < theMessage.size(); i++)
 	{
-		commandLength = theMessage[0].size();
-		firstTextSize = theMessage[1].size();
-		secondTextSize = theMessage[2].size();
-		//12 is for the 3 lengths being written in from the messages. 3 ints = 12 bytes;
-		tempSize = commandLength + firstTextSize + secondTextSize + 12;
-		return  tempSize;
-	}
-	else if (theMessage.size() == 1)
-	{
-		commandLength = theMessage[0].size();
-		firstTextSize = theMessage[1].size();
-		//12 is for the 3 lengths being written in fron of the messages. 2 ints = 8 bytes;
-		tempSize = commandLength + firstTextSize + 8;
-		return  tempSize;
-	}
-	else
-	{
-		commandLength = theMessage[0].size();
-		tempSize = commandLength + 4;
-		return tempSize;
+		tempSize += theMessage[i].size();
 	}
 
+	//get the sizes for the integers written in between as well
+	tempSize += (theMessage.size() * 4);
 	return tempSize;
+
 }
 
-std::vector<std::string>& SocketManager::parseMessage(int& bytesReceived)
+std::vector<std::string> SocketManager::parseMessage(int& bytesReceived)
 {
 	Header* tempHeader;
 	int messageLength = 0;
@@ -173,7 +170,7 @@ std::vector<std::string>& SocketManager::parseMessage(int& bytesReceived)
 	if (bytesReceived >= 8)// enough bytes to read the header
 	{
 		tempHeader = new Header();
-		//read the packet and do something with it 
+		//read the packet and do something with it 	
 		tempHeader->packet_length = this->theBuffer->ReadInt32BE();
 		tempHeader->message_id = this->theBuffer->ReadInt32BE();
 		//check to make sure the whole packet has arrived
@@ -204,6 +201,7 @@ std::vector<std::string>& SocketManager::parseMessage(int& bytesReceived)
 			}
 			else if (tempHeader->message_id == 10) {
 				//simple message
+				theMessages.push_back(message);
 			}
 
 			return theMessages;
@@ -230,7 +228,8 @@ void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
 		}
 	}
 	else if (bytesReceived == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {//print error message
-		print_text("receive failed with error: %s", WSAGetLastError());
+		int error = WSAGetLastError();
+		print_text("receive failed with error: %i", WSAGetLastError());
 	}
 
 }
@@ -254,4 +253,6 @@ std::vector<std::string>& SocketManager::parseStringBySpace(std::vector<std::str
 		else //add the letter to the string
 			tempString += message[i];
 	}
+
+	return container;
 }

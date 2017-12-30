@@ -34,6 +34,8 @@ public:
 	//std::vector<uint8_t> getBuffer();
 	std::vector<char>& getBuffer();
 	char* Buffer::getBufferAsCharArray();
+	void clearBuffer();
+
 private:
 	std::vector<char> mBuffer;
 	int mReadIndex;

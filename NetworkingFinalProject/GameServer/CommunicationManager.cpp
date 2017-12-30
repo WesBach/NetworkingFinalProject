@@ -2,7 +2,7 @@
 #include "Buffer.h"
 #include "UserInfo.h"
 #include "GameLobby.h"
-
+#define HEADER_SIZE 8
 CommunicationManager::CommunicationManager()
 {
 	this->theBuffer = new Buffer();
@@ -19,10 +19,10 @@ CommunicationManager::~CommunicationManager()
 void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message,const int& messageId,int& packetLength)
 {
 	//create the new buffer with its new size(+8 is for leading two ints)
-	this->theBuffer = new Buffer(packetLength + 8);
+	this->theBuffer = new Buffer(packetLength + HEADER_SIZE);
 	//add the packet length and id to the buffer
+	this->theBuffer->WriteInt32BE(theBuffer->GetBufferLength());
 	this->theBuffer->WriteInt32BE(messageId);
-	this->theBuffer->WriteInt32BE(packetLength);
 	//add the message to the buffer
 	createMessage(message);
 
@@ -103,21 +103,26 @@ void CommunicationManager::closeRoom(std::string& roomName) {
 
 void CommunicationManager::recieveMessage(UserInfo& theUser) {
 
-	int bytesReceived = recv(*theUser.userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	theUser.userBuffer->clearBuffer();
+	theUser.userBuffer->resizeBuffer(512);
+
+	int bytesReceived = recv(*theUser.userSocket, theUser.userBuffer->getBufferAsCharArray(), theUser.userBuffer->GetBufferLength() + 1, 0);
 	if (bytesReceived >= 4)
 	{
 		//get the packet length
 		int packetLength = theUser.userBuffer->ReadInt32BE();
 
 		//if the entire packet arrived otherwise do nothing
-		if (packetLength == bytesReceived)
+		if (bytesReceived  >= packetLength)
 		{
 			//read the rest of the info
 			int commandId = theUser.userBuffer->ReadInt32BE();
 			int commandLength = theUser.userBuffer->ReadInt32BE();
 			std::string command = theUser.userBuffer->ReadStringBE(commandLength);
 
-
+			//clear the buffer and resize 
+			this->theBuffer->clearBuffer();
+			this->theBuffer->resizeBuffer(512);
 
 			if (commandId == 1) {
 				//Register
@@ -149,15 +154,22 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				//Add the strings to the buffer and send the message
 
 				//write id and packet size
+				
 				this->theBuffer->WriteInt32BE(4);
-				this->theBuffer->WriteInt32BE(getPacketSize(theLobbyInfo));
-				
-				
+				this->theBuffer->WriteInt32BE(getPacketSize(theLobbyInfo));			
 			}
 			else if (commandId == 5)
 			{
 				//REFRESH
+				std::vector<std::string> theLobbyInfo = this->getLobbyInfo();
 
+				//TODO::
+				//Add the strings to the buffer and send the message
+
+				//write id and packet size
+
+				this->theBuffer->WriteInt32BE(4);
+				this->theBuffer->WriteInt32BE(getPacketSize(theLobbyInfo));
 			}
 			else if (commandId == 6) {
 				//JOIN
