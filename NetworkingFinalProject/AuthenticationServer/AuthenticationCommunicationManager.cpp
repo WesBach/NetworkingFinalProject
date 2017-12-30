@@ -2,6 +2,7 @@
 #include "UserInfo.h"
 #include "Buffer.h"
 #include "SQLManager.h"
+#include "OpenSSLUtilities.h"
 
 #include <WinSock2.h>
 #include <iostream>
@@ -81,7 +82,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(st
 	{
 		//get salt
 		//create the salt 
-		std::string salt = createSalt();
+		std::string salt = getSalt();
 		//add the salt to the password
 		std::string tempPass = password + salt;
 		//hash the password
