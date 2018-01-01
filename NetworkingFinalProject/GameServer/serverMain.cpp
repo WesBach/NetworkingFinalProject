@@ -20,10 +20,10 @@
 
 //Globel variables
 std::map<char, std::vector<UserInfo*>> roomMap;
-std::vector<UserInfo*> usersInServer;
 
 fd_set master;
 SOCKET ListeningSocket;
+SOCKET ConnectSocket;
 //socket info structure to store all the individual socket information
 int initListening();
 CommunicationManager* theManager = new CommunicationManager();
@@ -39,6 +39,7 @@ int main() {
 
 	bool serverRunning = true;
 	bool authServerConnected = false;
+	UserInfo* newUser;
 
 	while (serverRunning)
 	{
@@ -58,13 +59,13 @@ int main() {
 				{
 					// Accept a new connection
 					SOCKET client = accept(ListeningSocket, nullptr, nullptr);
-					UserInfo* newUser = new UserInfo();
+					newUser = new UserInfo();
 					//Create the userInfo struct and add them to the list of users
 					newUser->userBuffer = new Buffer();
 					newUser->userSocket = &client;
 
 					//Assigns the new user to the hub room.
-					usersInServer.push_back(newUser);
+					theManager->theUsers.push_back(newUser);
 
 
 					//TODO:: Put the auth server in the vector and use its name to identify it
@@ -100,6 +101,7 @@ int initListening() {
 	struct addrinfo* result = 0;
 	//struct addrinfo* ptr = NULL;
 	struct addrinfo addressInfo;
+	struct addrinfo* ptr;
 	struct addrinfo hints;
 	int iResult = 0;
 	//create a socket for the server with the port 8899
@@ -120,40 +122,40 @@ int initListening() {
 		return 1;
 	}
 
-	////get the address info for the authentication server
-	//iResult = getaddrinfo(NULL, DEFAULT_AUTHENTICATION_PORT, &hints, &result);
-	//if (iResult != 0) {
-	//	printf("getaddrinfo failed with error: %d\n", iResult);
-	//	WSACleanup();
-	//	return 1;
-	//}
+	//get the address info for the authentication server
+	iResult = getaddrinfo(NULL, DEFAULT_AUTHENTICATION_PORT, &hints, &result);
+	if (iResult != 0) {
+		printf("getaddrinfo failed with error: %d\n", iResult);
+		WSACleanup();
+		return 1;
+	}
 
-	////connect to the authentication server  
-	//for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
-	//	ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-	//	if (ConnectSocket == INVALID_SOCKET) {
-	//		printf("socket() failed with error: %d\n", iResult);
-	//		WSACleanup();
-	//		return 1;
-	//	}
+	//connect to the authentication server  
+	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
+		ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+		if (ConnectSocket == INVALID_SOCKET) {
+			printf("socket() failed with error: %d\n", iResult);
+			WSACleanup();
+			return 1;
+		}
 
-	//	//connect to the socket
-	//	iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
-	//	if (iResult == SOCKET_ERROR) {
-	//		closesocket(ConnectSocket);
-	//		ConnectSocket = INVALID_SOCKET;
-	//		continue;
-	//	}
-	//	break;
-	//}
+		//connect to the socket
+		iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
+		if (iResult == SOCKET_ERROR) {
+			closesocket(ConnectSocket);
+			ConnectSocket = INVALID_SOCKET;
+			continue;
+		}
+		break;
+	}
 
-	//freeaddrinfo(result);
-	////Check if the Connected socket is valid
-	//if (ConnectSocket == INVALID_SOCKET) {
-	//	printf("Unable to connect to server\n");
-	//	WSACleanup();
-	//	return 1;
-	//}
+	freeaddrinfo(result);
+	//Check if the Connected socket is valid
+	if (ConnectSocket == INVALID_SOCKET) {
+		printf("Unable to connect to server\n");
+		WSACleanup();
+		return 1;
+	}
 
 	// Socket()
 	//socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
@@ -186,15 +188,16 @@ int initListening() {
 	}
 	printf("Listen for incoming requests\n");
 
+	theManager->theServerSocket = &ConnectSocket;
 }
 
 UserInfo* getClientFromVector(SOCKET& theSock) {
-	UserInfo* currInfo = new UserInfo();
-	for (int i = 0; i < usersInServer.size(); i++)
+	UserInfo* currInfo = NULL;
+	for (int i = 0; i < theManager->theUsers.size(); i++)
 	{
-		if (*usersInServer[i]->userSocket == theSock)
+		if (*theManager->theUsers[i]->userSocket == theSock)
 		{
-			currInfo = usersInServer[i];
+			currInfo = theManager->theUsers[i];
 			break;
 		}
 	}

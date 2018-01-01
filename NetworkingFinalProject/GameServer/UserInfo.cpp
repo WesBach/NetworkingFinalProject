@@ -9,6 +9,7 @@ UserInfo::UserInfo()
 
 UserInfo::~UserInfo()
 {
+
 }
 
 bool UserInfo::findRequestId(int& id) {
@@ -34,4 +35,3 @@ bool UserInfo::removeRequest(int& id) {
 
 	return false;
 }
-

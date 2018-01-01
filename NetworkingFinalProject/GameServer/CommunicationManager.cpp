@@ -128,7 +128,6 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 		{
 			//read the rest of the info
 			int commandId = theUser.userBuffer->ReadInt32BE();
-			int commandLength = theUser.userBuffer->ReadInt32BE();
 
 			//clear the buffer and resize before populating it again
 			this->theBuffer->clearBuffer();
@@ -249,9 +248,19 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				//have the user leave the lobby it's currently in
 				this->leaveLobby(&theUser, theUser.currentLobby);
 			}
-
+			else if (commandId == 10)
+			{
+				//generic response from the auth server
+				int requestId = theUser.userBuffer->ReadInt32BE();
+				int responseLength = theUser.userBuffer->ReadInt32BE();
+				std::string response = theUser.userBuffer->ReadStringBE(responseLength);
+				//get the request id and find the corresponding user
+				UserInfo* foundUser = getUserWithByRequestId(requestId);
+				tempVector.push_back(response);
+				//send the message
+				this->sendToClient(foundUser, response, 10, getPacketSize(tempVector));
+			}
 		}
-
 	}
 	else if (bytesReceived == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {//print error message
 		printf("receive failed with error: %s", WSAGetLastError());
@@ -283,13 +292,13 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 
 				//send a success message to the user that joined the room
 				theMessages.push_back(successfullyJoinedTheRoom);
-				sendToClient(theUser, successfullyJoinedTheRoom, 10, getPacketSize(theMessages));
+				this->sendToClient(theUser, successfullyJoinedTheRoom, 10, this->getPacketSize(theMessages));
 				return;
 			}
 			else {
 				//send the failure message
 				theMessages.push_back(theFullMessage);
-				sendToClient(theUser, theFullMessage, 10, getPacketSize(theMessages));
+				this->sendToClient(theUser, theFullMessage, 10, this->getPacketSize(theMessages));
 				return;
 			}
 		}
@@ -297,7 +306,7 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 
 	//didnt find the lobby 
 	theMessages.push_back(theFailureMessage);
-	sendToClient(theUser, theFailureMessage, 10, this->getPacketSize(theMessages));
+	this->sendToClient(theUser, theFailureMessage, 10, this->getPacketSize(theMessages));
 }
 
 void CommunicationManager::leaveLobby(UserInfo* theUser, std::string& lobbyName) {
@@ -392,4 +401,21 @@ int& CommunicationManager::getPacketSize(std::vector<std::string> theMessage) {
 	//get the sizes for the integers written in between as well
 	tempSize += theMessage.size() * 4;
 	return tempSize;
+}
+
+UserInfo* CommunicationManager::getUserWithByRequestId(int id)
+{
+	//go through the users
+	for (int i = 0; i < this->theUsers.size(); i++)
+	{
+		//go through the currernt request vector to find the matching id
+		for (int requestIndex = 0; requestIndex < this->theUsers[i]->requests.size(); i++)
+		{
+			//if theres a match return the current user
+			if (this->theUsers[i]->requests[requestIndex] == id)
+				return this->theUsers[i];
+		}
+	}
+	//if the request isn't found
+	return new UserInfo();
 }

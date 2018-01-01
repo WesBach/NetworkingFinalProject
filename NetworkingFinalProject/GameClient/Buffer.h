@@ -31,11 +31,12 @@ public:
 	std::string ReadStringBE(int length);
 	int GetBufferLength();
 	void Buffer::resizeBuffer(size_t size);
-	void clearBuffer();
-
 	//std::vector<uint8_t> getBuffer();
 	std::vector<char>& getBuffer();
 	char* Buffer::getBufferAsCharArray();
+	void clearBuffer();
+	void resetReadWriteIndex();
+
 private:
 	std::vector<char> mBuffer;
 	int mReadIndex;

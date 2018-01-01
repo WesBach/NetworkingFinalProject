@@ -1,11 +1,12 @@
 #include "AuthenticationCommunicationManager.h"
 #include "UserInfo.h"
 #include "Buffer.h"
-#include "SQLManager.h"
 #include "OpenSSLUtilities.h"
+#include "SQLManager.h"
 
 #include <WinSock2.h>
 #include <iostream>
+#define HEADER_SIZE 8
 
 AuthenticationCommunicationManager::AuthenticationCommunicationManager()
 {
@@ -18,7 +19,6 @@ AuthenticationCommunicationManager::~AuthenticationCommunicationManager()
 	delete this->theBuffer;
 	delete this->theSQLManager;
 }
-
 
 void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 	theUser->userBuffer->clearBuffer();
@@ -42,24 +42,36 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 			int passLength = theUser->userBuffer->ReadInt32BE();
 			std::string password = theUser->userBuffer->ReadStringBE(passLength);
 		
-
-
+			//auth/register results
+			std::pair<bool, std::string> results;
 			if (id == 1)
 			{
 				//register
-				this->registerUser(email, password);
+				results = this->registerUser(email, password);
 			}
 			else if (id == 2)
 			{
 				//authenticate
-				this->authenticateUser(email, password);
+				results =  this->authenticateUser(email, password);
+			}
+
+			if (results.second != "")
+			{
+				//add info to the buffer to be sent
+				this->theBuffer->WriteInt32BE(results.second.size() + HEADER_SIZE + 4);
+				this->theBuffer->WriteInt32BE(12);
+				this->theBuffer->WriteInt32BE(requestId);
+				this->theBuffer->WriteInt32BE(results.second.size());
+				this->theBuffer->WriteStringBE(results.second);
+				//send the reply
+				this->sendMessage(theUser);
 			}
 		}
 	}
 }
 
 void AuthenticationCommunicationManager::sendMessage(UserInfo* theUser) {
-	int sendResult = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	int sendResult = send(*theUser->sendSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
 	//check for error
 	if (sendResult == SOCKET_ERROR)
 	{
@@ -86,11 +98,11 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(st
 	{
 		//get salt
 		//create the salt 
-		std::string salt = getSalt();
+		std::string salt = OpenSSLUtilities::getSalt();
 		//add the salt to the password
 		std::string tempPass = password + salt;
 		//hash the password
-		std::string password = hashPassword(tempPass.c_str());
+		std::string password = OpenSSLUtilities::hashPassword(tempPass.c_str());
 		//add the user to the db
 		std::string insert = "INSERT INTO accounts (email,salt,password,last_login) values('" + email + "','" + salt +"','" + password + ",NOW()');";
 
@@ -122,7 +134,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUse
 	std::string selectUserByEmail = "SELECT * FROM accounts WHERE email ='" + email + "';";
 	sql::ResultSet* userResult = this->theSQLManager->executeSelect(selectUserByEmail);
 
-	if (userResult->rowsCount == 1)
+	if (userResult->rowsCount() == 1)
 	{
 		//set it to the first item
 		userResult->next();
@@ -133,7 +145,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUse
 
 		std::string tempPass = password + salt;
 		//hash the password
-		std::string hashedPassword = hashPassword((char*)tempPass.c_str());
+		std::string hashedPassword = OpenSSLUtilities::hashPassword((char*)tempPass.c_str());
 
 		if (storedHash == hashedPassword)
 		{
@@ -158,5 +170,3 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUse
 
 	return results;
 }
-
-

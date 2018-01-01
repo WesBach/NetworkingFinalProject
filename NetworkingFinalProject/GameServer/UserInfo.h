@@ -13,7 +13,7 @@ public:
 	Buffer* userBuffer;
 
 	//holds the current requests for the user
-	std::vector<unsigned int> requests;
+	std::vector<int> requests;
 
 	bool isLobbyHost;
 	std::string currentLobby;

@@ -1,7 +1,11 @@
+
 #include <WinSock2.h>
 #include <WS2tcpip.h>
-#include "SQLManager.h"
+#include <iostream>
+#include "AuthenticationCommunicationManager.h"
 #include "Buffer.h"
+#include "UserInfo.h"
+
 
 #pragma comment(lib, "Ws2_32.lib")
 #define DEFAULT_PORT "6000"
@@ -11,44 +15,67 @@ void initListening();
 void connectToServer();
 bool running = true;
 
-SQLManager* pTheSQLManager;
 SOCKET ListenSocket;
 SOCKET ConnectSocket;
 fd_set master;
+UserInfo* g_pTheChatServer;
+AuthenticationCommunicationManager* theCommManager;
 
 int main() {
-	//connects to the db 
-	pTheSQLManager = new SQLManager();
-
+	//initialize listening socket
 	initListening();
 	ULONG nonBlock = 1;
 	//zero out master
 	FD_ZERO(&master);
 	FD_SET(ListenSocket, &master);
+	//set as null pointer
+	g_pTheChatServer = new UserInfo();
+	bool serverConnected = false;
 
 	while (running)
 	{
+		//copy the master set
 		fd_set copy = master;
+		//get number of incoming communication sockets
 		int socketCount = select(0, &copy, nullptr, nullptr, 0);
 
-		if (socketCount > 0)
+		//dont bother searching for more connections if the cerver is already connected
+		if (serverConnected == false)
 		{
-			for (int i = 0; i < socketCount; i++)
+			//check for incoming sockets
+			if (socketCount > 0)
 			{
-				SOCKET sock = copy.fd_array[i];
-
-				// Is it an inbound communication?
-				if (sock == ListenSocket)
+				//go through each socket
+				for (int i = 0; i < socketCount; i++)
 				{
-					//TODO::
-					//Create the CommunicationManager to handle incoming and outgoing messages
+					SOCKET sock = copy.fd_array[i];
 
+					// Is it an inbound communication?
+					if (sock == ListenSocket)
+					{
 
-				}//end if
+						std::vector<std::string> results;
+						// Accept a new connection
+						SOCKET server = accept(ListenSocket, nullptr, nullptr);
+						g_pTheChatServer->userSocket = &server;
+
+						// Add the new connection to master
+						FD_SET(*g_pTheChatServer->userSocket, &master);
+
+						std::cout << "Chat server successfully connected!";
+						connectToServer();
+						//server is now connected
+						serverConnected = true;
+
+					}//end if
+				}
 			}
 		}
-	}
-
+		else {
+			//receive the messages
+			theCommManager->receiveMessage(g_pTheChatServer);
+		}
+	}//end while
 }
 
 void initListening() {
@@ -143,4 +170,7 @@ void connectToServer() {
 		printf("Unable to connect to server\n");
 		WSACleanup();
 	}
+
+	//set the send socket
+	g_pTheChatServer->sendSocket = &ConnectSocket;
 }

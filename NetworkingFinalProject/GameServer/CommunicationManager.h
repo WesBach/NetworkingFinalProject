@@ -19,6 +19,7 @@ public:
 	
 	//map of lobbies with the users
 	std::vector<GameLobby*> theLobbies;
+	std::vector<UserInfo*> theUsers;
 
 	void createLobby(UserInfo* theUser,std::string& mapName, std::string& mode,std::string& gameMode );
 	void joinLobby(UserInfo* theUser, std::string& lobbyName);
@@ -38,6 +39,7 @@ public:
 
 	std::vector<std::string> CommunicationManager::getLobbyInfo();
 	int& getPacketSize(std::vector<std::string> theMassage);
+	UserInfo* CommunicationManager::getUserWithByRequestId(int id);
 };
 
 #endif // !_Communication_Manager_HG_

@@ -176,3 +176,7 @@ std::string Buffer::ReadStringBE(int length) {
 	return phrase;
 }
 
+void Buffer::resetReadWriteIndex() {
+	this->mReadIndex = 0;
+	this->mWriteIndex = 0;
+}

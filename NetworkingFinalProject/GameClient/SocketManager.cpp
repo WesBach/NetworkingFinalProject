@@ -8,6 +8,7 @@
 SocketManager::SocketManager() {
 	this->theBuffer = new Buffer();
 	srand(time(NULL));
+	setMinMax();
 }
 
 SocketManager::~SocketManager() {
@@ -30,6 +31,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 	if (theMessage.size() >= 1)
 	{
 		//create buffer with the correct size
+		this->theBuffer->clearBuffer();
 		this->theBuffer->resizeBuffer(this->getPacketSize(theMessage) + HEADER_SIZE);
 
 		//id = 1
@@ -37,11 +39,11 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//2. Register an account. (2 marks)
 			//write packet size add header size and request id size
-			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE + 4);
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			//message id
 			this->theBuffer->WriteInt32BE(1);
 			//write the random request id between min and max
-			this->theBuffer->ReadInt32BE(rand() % this->requestIdMax + this->requestIdMin);
+			this->theBuffer->WriteInt32BE(rand() % this->requestIdMax + this->requestIdMin);
 			//email length
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			//email
@@ -56,10 +58,10 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			//id = 2
 			//2. authenticate an account. (2 marks)
 			//write packet size add header size and request id size
-			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE + 4);
+			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(2);
 			//write the random request id between min and max
-			this->theBuffer->ReadInt32BE(rand()% this->requestIdMax + this->requestIdMin);
+			this->theBuffer->WriteInt32BE(rand()% this->requestIdMax + this->requestIdMin);
 			//email
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
@@ -88,12 +90,15 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			//id = 4
 			//4. View the game lobby list. (3 mark)
 			//write packet length first
+			this->theBuffer->resizeBuffer(HEADER_SIZE);
+
 			this->theBuffer->WriteInt32BE(HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(4);
 		}
 		else if (theMessage[0] == "REFRESH" || theMessage[0] == "refresh")
 		{
 			//id = 5
+			this->theBuffer->resizeBuffer(HEADER_SIZE);
 			//5. Refresh the game lobby list.This can be done automatically, or by client
 			this->theBuffer->WriteInt32BE(HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(5);
@@ -111,6 +116,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		{
 			//id = 7
 			//7. Leave the game lobby
+			this->theBuffer->resizeBuffer(HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
 			this->theBuffer->WriteInt32BE(7);
 		}
@@ -140,8 +146,8 @@ int& SocketManager::getPacketSize(std::vector<std::string> theMessage) {
 	int secondTextSize = 0;
 	int tempSize = 0;
 
-	//accumulate all the sizes 
-	for (int i = 0; i < theMessage.size(); i++)
+	//accumulate all the sizes (start at one to ignore the command string)
+	for (int i = 1; i < theMessage.size(); i++)
 	{
 		tempSize += theMessage[i].size();
 	}
@@ -253,5 +259,5 @@ void SocketManager::setMinMax() {
 	//number between 1 and 1000
 	int min = rand() % 10000 + 1;
 	this->requestIdMin = min * 100;
-	this->requestIdMax = min + 1000;
+	this->requestIdMax = requestIdMin + 1000;
 }

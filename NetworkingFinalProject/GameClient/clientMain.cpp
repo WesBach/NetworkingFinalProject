@@ -182,11 +182,11 @@ void printScreen()
 std::string& keyboardInput(std::string& input) {
 
 	//index variables for string find
-	int joinRoomIndex = -1;
+	int authenticateUserIndex = -1;
 	int leaveRoomIndex = -1;
 	int viewIndex = -1;
 	int refreshLobbiesIndex = -1;
-	int sendMessageIndex = -1;
+	int registerUserIndex = -1;
 	int quitIndex = -1;
 	//vector to hold command and messages
 	std::vector<std::string> commands;
@@ -197,27 +197,27 @@ std::string& keyboardInput(std::string& input) {
 		{
 			if (input.size() >= 4)
 			{
-				sendMessageIndex = input.find("SM ");//Send Message
-				joinRoomIndex = input.find("JR ");//Join Room
+				registerUserIndex = input.find("REGISTER ");//Send Message
+				authenticateUserIndex = input.find("AUTHENTICATE ");//Join Room
 				leaveRoomIndex = input.find("LR ");//Leave Room
 				viewIndex = input.find("VIEW"); //View lobbies
 				refreshLobbiesIndex = input.find("REFRESH");	//Refresh the lobbies
 				quitIndex = input.find("QUIT");
 
-				if (joinRoomIndex >= 0)
+				if (registerUserIndex >= 0)
 				{
 					//create the command and message and send it to the server
-					commands = populateCommands(input, 2);
+					commands = populateCommands(input, 3);
 				}
 				else if (leaveRoomIndex >= 0)
 				{
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 2);
 				}
-				else if (sendMessageIndex >= 0)
+				else if (authenticateUserIndex >= 0)
 				{
 					//create the command and message and send it to the server
-					commands = populateCommands(input, 2);
+					commands = populateCommands(input, 3);
 				}
 				else if (viewIndex >= 0)
 				{
@@ -265,6 +265,12 @@ std::vector<std::string> populateCommands(std::string& commands,const int& numCo
 	for (int i = 0; i < commands.size(); i++)
 	{
 		//if its a space skip
+		if (i == commands.size() - 1 && tempString != "")
+		{
+			tempString += commands[i];
+			theCommands.push_back(tempString);
+		}
+		
 		if (commands[i] != ' ')
 		{
 			tempString += commands[i];

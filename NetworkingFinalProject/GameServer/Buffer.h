@@ -35,6 +35,7 @@ public:
 	std::vector<char>& getBuffer();
 	char* Buffer::getBufferAsCharArray();
 	void clearBuffer();
+	void resetReadWriteIndex();
 
 private:
 	std::vector<char> mBuffer;

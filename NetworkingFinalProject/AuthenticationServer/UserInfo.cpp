@@ -1,7 +1,9 @@
 #include "UserInfo.h"
+#include "Buffer.h"
 
 UserInfo::UserInfo()
 {
+	this->userBuffer = new Buffer();
 	this->isLobbyHost = false;
 	this->currentLobby = "";
 	this->userName = "";
