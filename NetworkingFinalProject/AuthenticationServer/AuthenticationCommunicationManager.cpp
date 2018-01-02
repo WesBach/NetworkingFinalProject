@@ -71,7 +71,7 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 }
 
 void AuthenticationCommunicationManager::sendMessage(UserInfo* theUser) {
-	int sendResult = send(*theUser->sendSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	int sendResult = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
 	//check for error
 	if (sendResult == SOCKET_ERROR)
 	{
@@ -84,7 +84,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(st
 	std::pair<bool, std::string> results(false, "");
 	//check to see if user already exists
 	//find the user by it's email
-	std::string selectUserByEmail = "SELECT * FROM accounts WHERE email ='" + email + "';";
+	std::string selectUserByEmail = "SELECT * FROM accounts WHERE username ='" + email + "';";
 	sql::ResultSet* userResult = this->theSQLManager->executeSelect(selectUserByEmail);
 
 	//if it does exist return false
@@ -104,7 +104,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(st
 		//hash the password
 		std::string password = OpenSSLUtilities::hashPassword(tempPass.c_str());
 		//add the user to the db
-		std::string insert = "INSERT INTO accounts (email,salt,password,last_login) values('" + email + "','" + salt +"','" + password + ",NOW()');";
+		std::string insert = "INSERT INTO accounts (username,salt,password,last_login) values('" + email + "','" + salt +"','" + password + "',NOW());";
 
 		bool success = this->theSQLManager->execute(insert);
 
@@ -131,7 +131,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUse
 	std::pair<bool, std::string> results(false,"");
 	//authenticate user with email and password
 
-	std::string selectUserByEmail = "SELECT * FROM accounts WHERE email ='" + email + "';";
+	std::string selectUserByEmail = "SELECT * FROM accounts WHERE username ='" + email + "';";
 	sql::ResultSet* userResult = this->theSQLManager->executeSelect(selectUserByEmail);
 
 	if (userResult->rowsCount() == 1)

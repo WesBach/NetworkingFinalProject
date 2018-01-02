@@ -132,6 +132,8 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 			//clear the buffer and resize before populating it again
 			this->theBuffer->clearBuffer();
 			this->theBuffer->resizeBuffer(512);
+			//set the read and write index 
+			this->theBuffer->resetReadWriteIndex();
 
 			if (commandId == 1) {
 				//Register

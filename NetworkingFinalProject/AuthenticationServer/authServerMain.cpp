@@ -30,6 +30,8 @@ int main() {
 	FD_SET(ListenSocket, &master);
 	//set as null pointer
 	g_pTheChatServer = new UserInfo();
+	theCommManager = new AuthenticationCommunicationManager();
+
 	bool serverConnected = false;
 
 	while (running)
@@ -170,7 +172,4 @@ void connectToServer() {
 		printf("Unable to connect to server\n");
 		WSACleanup();
 	}
-
-	//set the send socket
-	g_pTheChatServer->sendSocket = &ConnectSocket;
 }

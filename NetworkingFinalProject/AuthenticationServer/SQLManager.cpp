@@ -22,7 +22,8 @@ bool SQLManager::execute(const std::string & statement)
 	try
 	{
 		this->prepState = connection->prepareStatement(statement.c_str());
-		return this->prepState->execute();
+		this->prepState->execute();
+		return true;
 	}
 	catch (sql::SQLException &exception)
 	{
