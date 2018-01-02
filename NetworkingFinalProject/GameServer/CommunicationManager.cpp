@@ -19,7 +19,7 @@ CommunicationManager::~CommunicationManager()
 //Return:		void 
 void CommunicationManager::sendToClient(UserInfo* theUser)
 {
-	int res = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
+	int res = send(theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
 	if (res == SOCKET_ERROR)
 	{
 		printf("Send failed with error: %ld\n", res);
@@ -39,7 +39,7 @@ void CommunicationManager::sendToClient(UserInfo* theUser, std::string & message
 	//add the message to the buffer
 	createMessage(message);
 
-	int res = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
+	int res = send(theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
 	if (res == SOCKET_ERROR)
 	{
 		printf("Send failed with error: %ld\n", res);
@@ -117,7 +117,7 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 	//for getting packet length
 	std::vector<std::string> tempVector;
 
-	int bytesReceived = recv(*theUser.userSocket, theUser.userBuffer->getBufferAsCharArray(), theUser.userBuffer->GetBufferLength() + 1, 0);
+	int bytesReceived = recv(theUser.userSocket, theUser.userBuffer->getBufferAsCharArray(), theUser.userBuffer->GetBufferLength() + 1, 0);
 	if (bytesReceived >= 4)
 	{
 		//get the packet length
@@ -261,6 +261,19 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				tempVector.push_back(response);
 				//send the message
 				this->sendToClient(foundUser, response, 10, getPacketSize(tempVector));
+			}
+			else if (commandId == 12)
+			{
+				//generic response from the auth server
+				int requestId = theUser.userBuffer->ReadInt32BE();
+				int responseLength = theUser.userBuffer->ReadInt32BE();
+				std::string response = theUser.userBuffer->ReadStringBE(responseLength);
+				//get the request id and find the corresponding user
+				UserInfo* foundUser = getUserWithByRequestId(requestId);
+				//add 4 so that the length accounts for the integer in front of it
+				responseLength += 4;
+				//send the message
+				this->sendToClient(foundUser, response, 10, responseLength);
 			}
 		}
 	}

@@ -10,6 +10,7 @@ public:
 	UserInfo();
 	~UserInfo();
 	SOCKET* userSocket;
+	SOCKET* sendSocket;
 	Buffer* userBuffer;
 	std::vector<int> requests;
 

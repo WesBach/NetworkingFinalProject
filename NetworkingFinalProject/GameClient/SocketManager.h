@@ -22,8 +22,13 @@ public:
 	};
 
 	Buffer* theBuffer;
+	//for recieving half messages
+	Buffer* carryOverBuffer;
+	int initialPacketLength;
+
 	SOCKET* theSocket;
 	std::vector<int> requestIds;
+
 
 	//will be int the range of (1 to 1000) * 100;
 	int requestIdMin;

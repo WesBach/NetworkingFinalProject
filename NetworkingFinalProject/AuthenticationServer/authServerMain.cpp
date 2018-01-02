@@ -172,4 +172,6 @@ void connectToServer() {
 		printf("Unable to connect to server\n");
 		WSACleanup();
 	}
+
+	g_pTheChatServer->sendSocket = &ConnectSocket;
 }

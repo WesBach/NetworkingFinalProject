@@ -62,28 +62,14 @@ int main() {
 					newUser = new UserInfo();
 					//Create the userInfo struct and add them to the list of users
 					newUser->userBuffer = new Buffer();
-					newUser->userSocket = &client;
+					newUser->userSocket = client;
 
 					//Assigns the new user to the hub room.
 					theManager->theUsers.push_back(newUser);
 
-
-					//TODO:: Put the auth server in the vector and use its name to identify it
-
-					////check to see if its the auth server (only works if auth server is first connection)
-					//if (authServerConnected == false)
-					//{
-					//	authServerRec = client;
-					//	authServerConnected = true;
-					//}
-
 					// Add the connection
 					FD_SET(client, &master);
 
-					// Send a welcome message to the connected client
-					std::string connectionMessage = "You are now connected to the chat server!";
-					int packSize = connectionMessage.size() + 4;
-					theManager->sendToClient(newUser, connectionMessage,10, packSize);
 				}
 				else {
 					UserInfo* currInfo = getClientFromVector(sock);					
@@ -195,7 +181,7 @@ UserInfo* getClientFromVector(SOCKET& theSock) {
 	UserInfo* currInfo = NULL;
 	for (int i = 0; i < theManager->theUsers.size(); i++)
 	{
-		if (*theManager->theUsers[i]->userSocket == theSock)
+		if (theManager->theUsers[i]->userSocket == theSock)
 		{
 			currInfo = theManager->theUsers[i];
 			break;

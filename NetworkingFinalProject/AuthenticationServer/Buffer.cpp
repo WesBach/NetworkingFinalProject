@@ -28,6 +28,11 @@ void Buffer::clearBuffer() {
 //	return mBuffer;
 //}
 
+void Buffer::setBuffer(std::vector<char>& newBuffer) {
+	this->mBuffer = newBuffer;
+}
+
+
 std::vector<char>& Buffer::getBuffer()
 {
 	return mBuffer;

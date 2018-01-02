@@ -33,6 +33,7 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 		//create buffer with the correct size
 		this->theBuffer->clearBuffer();
 		this->theBuffer->resizeBuffer(this->getPacketSize(theMessage) + HEADER_SIZE);
+		this->theBuffer->resetReadWriteIndex();
 
 		//id = 1
 		if (theMessage[0] == "REGISTER" || theMessage[0] == "register")
@@ -172,6 +173,10 @@ std::vector<std::string> SocketManager::parseMessage(int& bytesReceived)
 		tempHeader->packet_length = this->theBuffer->ReadInt32BE();
 		tempHeader->message_id = this->theBuffer->ReadInt32BE();
 		//check to make sure the whole packet has arrived
+		while (bytesReceived != tempHeader->packet_length) {
+			bytesReceived += recv(*this->theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+		}
+
 		if (bytesReceived == tempHeader->packet_length)
 		{
 			//continue reading from the buffer
@@ -203,16 +208,15 @@ std::vector<std::string> SocketManager::parseMessage(int& bytesReceived)
 			}
 
 			return theMessages;
-		}
+		}	
 	}
-
 	return theMessages;
 }
 
 void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
 {
 	int bytesReceived = recv(*this->theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
-	if (bytesReceived > 0)
+	if (bytesReceived >= 4)
 	{
 		//do the conversion
 		std::vector<std::string> receivedPhrase = parseMessage(bytesReceived);

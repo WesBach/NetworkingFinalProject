@@ -23,6 +23,7 @@ AuthenticationCommunicationManager::~AuthenticationCommunicationManager()
 void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 	theUser->userBuffer->clearBuffer();
 	theUser->userBuffer->resizeBuffer(512);
+	theUser->userBuffer->resetReadWriteIndex();
 
 	int bytesReceived = recv(*theUser->userSocket, theUser->userBuffer->getBufferAsCharArray(), theUser->userBuffer->GetBufferLength() + 1, 0);
 	if (bytesReceived >= 4)
@@ -32,18 +33,16 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 		//make sure the whole message was delivered
 		if (bytesReceived >= packetLength)
 		{
+			//auth/register results
+			std::pair<bool, std::string> results;
+
 			//get the message id 
 			int id = theUser->userBuffer->ReadInt32BE();
-			//get the info from the buffer
-
 			int requestId = theUser->userBuffer->ReadInt32BE();
 			int emailLength = theUser->userBuffer->ReadInt32BE();
 			std::string email = theUser->userBuffer->ReadStringBE(emailLength);
 			int passLength = theUser->userBuffer->ReadInt32BE();
 			std::string password = theUser->userBuffer->ReadStringBE(passLength);
-		
-			//auth/register results
-			std::pair<bool, std::string> results;
 			if (id == 1)
 			{
 				//register
@@ -57,8 +56,11 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 
 			if (results.second != "")
 			{
+				this->theBuffer->clearBuffer();
+				this->theBuffer->resizeBuffer(results.second.size() + HEADER_SIZE + 8);
+				this->theBuffer->resetReadWriteIndex();
 				//add info to the buffer to be sent
-				this->theBuffer->WriteInt32BE(results.second.size() + HEADER_SIZE + 4);
+				this->theBuffer->WriteInt32BE(results.second.size() + HEADER_SIZE + 8);
 				this->theBuffer->WriteInt32BE(12);
 				this->theBuffer->WriteInt32BE(requestId);
 				this->theBuffer->WriteInt32BE(results.second.size());
@@ -71,7 +73,7 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 }
 
 void AuthenticationCommunicationManager::sendMessage(UserInfo* theUser) {
-	int sendResult = send(*theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	int sendResult = send(*theUser->sendSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
 	//check for error
 	if (sendResult == SOCKET_ERROR)
 	{

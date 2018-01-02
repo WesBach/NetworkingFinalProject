@@ -9,7 +9,7 @@ class UserInfo {
 public:
 	UserInfo();
 	~UserInfo();
-	SOCKET* userSocket;
+	SOCKET userSocket;
 	Buffer* userBuffer;
 
 	//holds the current requests for the user
