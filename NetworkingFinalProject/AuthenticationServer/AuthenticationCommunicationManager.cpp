@@ -20,6 +20,9 @@ AuthenticationCommunicationManager::~AuthenticationCommunicationManager()
 	delete this->theSQLManager;
 }
 
+//Name:			receiveMessage
+//Purpose:		Recieve a packet for the passed in user and process it.
+//Return:		void
 void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 	theUser->userBuffer->clearBuffer();
 	theUser->userBuffer->resizeBuffer(512);
@@ -30,6 +33,21 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 	{
 		//get the packet length
 		int packetLength = theUser->userBuffer->ReadInt32BE();
+
+		while (bytesReceived <= packetLength) {
+			bytesReceived += recv(*theUser->userSocket, theUser->carryOverBuffer->getBufferAsCharArray(), theUser->carryOverBuffer->GetBufferLength(), 0);
+
+			std::vector<char> tempCharVec = theUser->carryOverBuffer->getBuffer();
+			std::vector<char> initialBuffer = theUser->userBuffer->getBuffer();
+
+			for (int i = 0; i < tempCharVec.size(); i++)
+			{
+				initialBuffer.push_back(tempCharVec[i]);
+			}
+			//set the buffer to the new concatenated buffer and set the read index to the correct location
+			theUser->userBuffer->setBuffer(initialBuffer);
+			theUser->userBuffer->setReadIndex(8);
+		}
 		//make sure the whole message was delivered
 		if (bytesReceived >= packetLength)
 		{
@@ -54,7 +72,38 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 				results =  this->authenticateUser(email, password);
 			}
 
-			if (results.second != "")
+			if (id == 1 && results.second != "")
+			{
+				this->theBuffer->clearBuffer();
+				this->theBuffer->resizeBuffer(results.second.size() + HEADER_SIZE + 8);
+				this->theBuffer->resetReadWriteIndex();
+				//add info to the buffer to be sent
+				this->theBuffer->WriteInt32BE(results.second.size() + HEADER_SIZE + 8);
+				this->theBuffer->WriteInt32BE(12);
+				this->theBuffer->WriteInt32BE(requestId);
+				this->theBuffer->WriteInt32BE(results.second.size());
+				this->theBuffer->WriteStringBE(results.second);
+
+				//send the reply
+				this->sendMessage(theUser);
+			}
+			else if (id == 2 && results.first == true)
+			{
+				this->theBuffer->clearBuffer();
+				this->theBuffer->resizeBuffer(results.second.size() + HEADER_SIZE + 8 + email.size() + 4);
+				this->theBuffer->resetReadWriteIndex();
+				//add info to the buffer to be sent
+				this->theBuffer->WriteInt32BE(results.second.size() + HEADER_SIZE + 8);
+				this->theBuffer->WriteInt32BE(11);
+				this->theBuffer->WriteInt32BE(requestId);
+				this->theBuffer->WriteInt32BE(results.second.size());
+				this->theBuffer->WriteStringBE(results.second);
+				this->theBuffer->WriteInt32BE(email.size());
+				this->theBuffer->WriteStringBE(email);
+				//send the reply
+				this->sendMessage(theUser);
+			}
+			else if (id == 2 && results.first == false)
 			{
 				this->theBuffer->clearBuffer();
 				this->theBuffer->resizeBuffer(results.second.size() + HEADER_SIZE + 8);
@@ -72,6 +121,9 @@ void AuthenticationCommunicationManager::receiveMessage(UserInfo* theUser) {
 	}
 }
 
+//Name:			sendMessage
+//Purpose:		Send a packet to a specific user.
+//Return:		void
 void AuthenticationCommunicationManager::sendMessage(UserInfo* theUser) {
 	int sendResult = send(*theUser->sendSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
 	//check for error
@@ -81,6 +133,9 @@ void AuthenticationCommunicationManager::sendMessage(UserInfo* theUser) {
 	}
 }
 
+//Name:			registerUser
+//Purpose:		Register a user given an email and password.
+//Return:		std::pair<bool, std::string>
 std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(std::string & email, std::string & password)
 {
 	std::pair<bool, std::string> results(false, "");
@@ -128,6 +183,9 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::registerUser(st
 	return results;
 }
 
+//Name:			authenticateUser
+//Purpose:		Authenticate a user based on email and password.
+//Return:		std::pair<bool, std::string>
 std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUser(std::string & email, std::string & password)
 {
 	std::pair<bool, std::string> results(false,"");
@@ -143,7 +201,7 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUse
 		//get the user salt
 		std::string salt = userResult->getString("salt").c_str();
 		//get the user hash
-		std::string storedHash = userResult->getString("hashed_password").c_str();
+		std::string storedHash = userResult->getString("password").c_str();
 
 		std::string tempPass = password + salt;
 		//hash the password
@@ -151,6 +209,10 @@ std::pair<bool, std::string> AuthenticationCommunicationManager::authenticateUse
 
 		if (storedHash == hashedPassword)
 		{
+			//TODO::
+			//update the last_login
+			std::string update = "UPDATE accounts SET last_login = NOW() WHERE username = '"+ email +"';";
+			this->theSQLManager->executeUpdate(update);
 
 			results.first = true;
 			results.second = "Account authentication Success!";

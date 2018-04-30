@@ -40,7 +40,7 @@ public:
 	void sendMessage();
 	std::vector<std::string> parseMessage(int& bytesReceived );
 	void receiveMessage(std::vector<std::string>& theScreenInfo);
-	std::vector<std::string>& parseStringBySpace(std::vector<std::string>& container, std::string& message);
+	std::vector<std::string>& parseStringByComma(std::vector<std::string>& container, std::string& message);
 
 	void setMinMax();
 };

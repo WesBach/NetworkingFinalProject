@@ -12,6 +12,8 @@ public:
 	SOCKET* userSocket;
 	SOCKET* sendSocket;
 	Buffer* userBuffer;
+	Buffer* carryOverBuffer;
+
 	std::vector<int> requests;
 
 	bool isLobbyHost;

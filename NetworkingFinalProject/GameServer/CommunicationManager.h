@@ -15,15 +15,18 @@ public:
 	~CommunicationManager();
 
 	Buffer* theBuffer;
+	Buffer* carryOverBuffer;
 	SOCKET* theServerSocket;
 	
 	//map of lobbies with the users
 	std::vector<GameLobby*> theLobbies;
 	std::vector<UserInfo*> theUsers;
+	std::vector<UserInfo*> theLoggedInUsers;
 
-	void createLobby(UserInfo* theUser,std::string& mapName, std::string& mode,std::string& gameMode );
+	void createLobby(UserInfo* theUser,std::string& mapName, std::string& mode,std::string& gameMode, int& numPlayers);
 	void joinLobby(UserInfo* theUser, std::string& lobbyName);
-	void leaveLobby(UserInfo* theUser, std::string& lobbyName);
+	void leaveLobby(UserInfo* theUser, GameLobby* lobby);
+	void closeLobby(std::string& roomName);
 
 	//void sendToClient(UserInfo* theUser, std::string& message);
 	void sendToClient(UserInfo* theUser, std::string & message, const int& messageId, int& packetLength);
@@ -34,12 +37,13 @@ public:
 
 	void recieveMessage(UserInfo& theUser);
 
-	void closeRoom(std::string& roomName);
 	void createMessage(std::string& message);
+
+	void userDisconnected(UserInfo& theUser,std::string reason);
 
 	std::vector<std::string> CommunicationManager::getLobbyInfo();
 	int& getPacketSize(std::vector<std::string> theMassage);
-	UserInfo* CommunicationManager::getUserWithByRequestId(int id);
+	UserInfo* CommunicationManager::getUserByRequestId(int id);
 };
 
 #endif // !_Communication_Manager_HG_

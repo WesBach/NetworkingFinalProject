@@ -32,6 +32,11 @@ void Buffer::setBuffer(std::vector<char>& newBuffer) {
 	this->mBuffer = newBuffer;
 }
 
+void Buffer::setReadIndex(int index)
+{
+	this->mReadIndex = index;
+}
+
 
 std::vector<char>& Buffer::getBuffer()
 {

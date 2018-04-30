@@ -11,6 +11,9 @@ static const char alphaNumeric[] =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 "abcdefghijklmnopqrstuvwxyz";
 
+//Name:			hashPassword
+//Purpose:		Hashes a passed in char* into a 64 character hash.
+//Return:		std::string
 std::string OpenSSLUtilities::hashPassword(const char * pass)
 {
 		//use sha_256 to generate a hash of the passed in string
@@ -30,6 +33,10 @@ std::string OpenSSLUtilities::hashPassword(const char * pass)
 		return mdString;
 }
 
+
+//Name:			getSalt
+//Purpose:		Creates a random salt for a pasword and returns it.
+//Return:		std::String
 std::string OpenSSLUtilities::getSalt() {
 	std::string tempStr;
 	for (unsigned int i = 0; i < 20; ++i)
@@ -39,6 +46,9 @@ std::string OpenSSLUtilities::getSalt() {
 	return tempStr;
 }
 
+//Name:			getRandCharacerFromAlphaNumeric
+//Purpose:		Gets a random character from the AlphaNumeric array.
+//Return:		char
 char OpenSSLUtilities::getRandCharacerFromAlphaNumeric()
 {
 	int stringLength = sizeof(alphaNumeric) - 1;

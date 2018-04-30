@@ -17,6 +17,9 @@ SQLManager::~SQLManager() {
 
 }
 
+//Name:			execute
+//Purpose:		Executes a passed in statement.
+//Return:		bool
 bool SQLManager::execute(const std::string & statement)
 {
 	try
@@ -37,6 +40,9 @@ bool SQLManager::execute(const std::string & statement)
 	return false;
 }
 
+//Name:			executeUpdate
+//Purpose:		Executes an update statement thats passed in.
+//Return:		int
 int SQLManager::executeUpdate(const std::string & statement)
 {
 	try

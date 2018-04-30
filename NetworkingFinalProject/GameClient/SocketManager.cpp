@@ -1,12 +1,13 @@
 #include "SocketManager.h"
 #include "Utility.h"
 #include <stdlib.h>    
-#include <time.h>       
+#include <time.h> 
 
 #define HEADER_SIZE 8
 
 SocketManager::SocketManager() {
 	this->theBuffer = new Buffer();
+	this->carryOverBuffer = new Buffer();
 	srand(time(NULL));
 	setMinMax();
 }
@@ -15,16 +16,10 @@ SocketManager::~SocketManager() {
 
 }
 
-//1. Must use TCP as its primary communication method. (1 mark)
-//2. Must use length - prefixing for message framing. (1 mark)
-//3. Uses Binary for serialization. (2 marks)
-//4. Network requests should be asynchronous, or run in a different thread. (2 marks)
-//5. Deserialize using length - prefixing properly
-//1. Handle multiple messages in one receive. (2 marks)
-//2. Handles partially received messages(waits for more data
-//	based on the length - prefix). (2 marks)
-//3. Checks if there is enough data to read the header first. (2 marks)
 
+//Name:			buildMessage		
+//Purpose:		Given the vector of input strings builds the message.
+//Return:		void
 void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 {
 	//build the message in the buffer
@@ -76,15 +71,21 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			//3. Create a game lobby. (2 marks)
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage) + HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(3);
-			//game mode 
+			//map
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
-			//lobby name
+			//game mode 
 			this->theBuffer->WriteInt32BE(theMessage[2].size());
 			this->theBuffer->WriteStringBE(theMessage[2]);
-			//num players
+			//lobby name
 			this->theBuffer->WriteInt32BE(theMessage[3].size());
 			this->theBuffer->WriteStringBE(theMessage[3]);
+			//num players(one int will be 4 bits)
+			this->theBuffer->WriteInt32BE(4);
+			int num;
+			//convert to int
+			sscanf(theMessage[4].c_str(), "%d", &num);
+			this->theBuffer->WriteInt32BE(num);
 		}
 		else if (theMessage[0] == "VIEW" || theMessage[0] == "view")
 		{
@@ -112,12 +113,13 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 			this->theBuffer->WriteInt32BE(6);
 			this->theBuffer->WriteInt32BE(theMessage[1].size());
 			this->theBuffer->WriteStringBE(theMessage[1]);
+
 		}
 		else if (theMessage[0] == "LEAVE" || theMessage[0] == "leave")
 		{
 			//id = 7
 			//7. Leave the game lobby
-			this->theBuffer->resizeBuffer(HEADER_SIZE);
+			this->theBuffer->resizeBuffer(this->getPacketSize(theMessage)+ HEADER_SIZE);
 			this->theBuffer->WriteInt32BE(this->getPacketSize(theMessage));
 			this->theBuffer->WriteInt32BE(7);
 		}
@@ -127,6 +129,9 @@ void SocketManager::buildMessage(std::vector<std::string>& theMessage)
 	theMessage.clear();
 }
 
+//Name:			sendMessage		
+//Purpose:		Sends the message in the buffer.
+//Return:		void
 void SocketManager::sendMessage()
 {
 	//use the internal buffer to send a message 
@@ -159,25 +164,47 @@ int& SocketManager::getPacketSize(std::vector<std::string> theMessage) {
 
 }
 
+
+//Name:			parseMessage
+//Purpose:		Parses the message based on the amount of bytes received.
+//Return:		std::vector<std::string>
 std::vector<std::string> SocketManager::parseMessage(int& bytesReceived)
 {
 	Header* tempHeader;
 	int messageLength = 0;
 	std::vector<std::string> theMessages;
 	std::string message = "";
+	this->theBuffer->resetReadWriteIndex();
 	//check to see if there is enough bytes to read the packet header
 	if (bytesReceived >= 8)// enough bytes to read the header
 	{
 		tempHeader = new Header();
 		//read the packet and do something with it 	
 		tempHeader->packet_length = this->theBuffer->ReadInt32BE();
+
 		tempHeader->message_id = this->theBuffer->ReadInt32BE();
 		//check to make sure the whole packet has arrived
-		while (bytesReceived != tempHeader->packet_length) {
-			bytesReceived += recv(*this->theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+
+		while (bytesReceived < tempHeader->packet_length) {
+			bytesReceived += recv(*this->theSocket, this->carryOverBuffer->getBufferAsCharArray(), this->carryOverBuffer->GetBufferLength(), 0);
+
+			std::vector<char> tempCharVec = this->carryOverBuffer->getBuffer();
+			std::vector<char> initialBuffer = this->theBuffer->getBuffer();
+
+			for (int i = 0; i < tempCharVec.size(); i++)
+			{
+				initialBuffer.push_back(tempCharVec[i]);
+			}
+			//set the buffer to the new concatenated buffer and set the read index to the correct location
+			this->theBuffer->setBuffer(initialBuffer);
+			this->theBuffer->setReadIndex(8);
+
+			if (tempHeader->packet_length > 1000)
+				break;
 		}
 
-		if (bytesReceived == tempHeader->packet_length)
+		//make sure there are enough bits to read the whole packet
+		if (bytesReceived >= tempHeader->packet_length)
 		{
 			//continue reading from the buffer
 			messageLength = this->theBuffer->ReadInt32BE();
@@ -192,15 +219,17 @@ std::vector<std::string> SocketManager::parseMessage(int& bytesReceived)
 			}
 			else if (tempHeader->message_id == 2)//refresh should give list lobbies
 			{
-				parseStringBySpace(theMessages,message);
+				parseStringByComma(theMessages,message);
 			}
 			else if (tempHeader->message_id == 3)//view the game lobby list 
 			{
 				//string split on spaces and get the data
-				parseStringBySpace(theMessages, message);
+				parseStringByComma(theMessages, message);
 			}
-			else if (tempHeader->message_id == 7) {
-				
+			else if (tempHeader->message_id == 4)//view the game lobby list 
+			{
+				//string split on spaces and get the data
+				parseStringByComma(theMessages, message);
 			}
 			else if (tempHeader->message_id == 10) {
 				//simple message
@@ -213,9 +242,12 @@ std::vector<std::string> SocketManager::parseMessage(int& bytesReceived)
 	return theMessages;
 }
 
+//Name:			receiveMessage
+//Purpose:		Recieves messages from the buffer, uses the sent message id to parse the message.
+//Return:		void
 void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
 {
-	int bytesReceived = recv(*this->theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
+	int bytesReceived = recv(*this->theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
 	if (bytesReceived >= 4)
 	{
 		//do the conversion
@@ -223,6 +255,7 @@ void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
 		if (receivedPhrase.size() > 0)
 		{
 			//add to the screen "buffer"
+			//theScreenInfo.clear();
 			for(unsigned int i = 0; i < receivedPhrase.size(); i++)
 			{
 				theScreenInfo.push_back(receivedPhrase[i]);
@@ -236,15 +269,17 @@ void SocketManager::receiveMessage(std::vector<std::string>& theScreenInfo)
 
 }
 
-std::vector<std::string>& SocketManager::parseStringBySpace(std::vector<std::string>& container,std::string& message)
+//Name:			parseStringByComma
+//Purpose:		Parses comma seperated string of characters into a vector of strings.
+//Return:		std::vector<std::string>&
+std::vector<std::string>& SocketManager::parseStringByComma(std::vector<std::string>& container,std::string& message)
 {
-	
 	std::string tempString;
 	//string split on spaces and get the data
 	for (int i = 0; i < message.size(); i++)
 	{
 		//check for spaces
-		if (message[i] == ' ')
+		if (message[i] == ',')
 		{
 			//if the string has letters in it add it to the vector
 			if(tempString.size() > 0)
@@ -259,6 +294,9 @@ std::vector<std::string>& SocketManager::parseStringBySpace(std::vector<std::str
 	return container;
 }
 
+//Name:			setMinMax	
+//Purpose:		Sets the min and max range for randomly generating id's.
+//Return:		void
 void SocketManager::setMinMax() {
 	//number between 1 and 1000
 	int min = rand() % 10000 + 1;

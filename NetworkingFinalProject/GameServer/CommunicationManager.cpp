@@ -3,6 +3,7 @@
 #include "UserInfo.h"
 #include "GameLobby.h"
 #define HEADER_SIZE 8
+extern fd_set master;
 
 CommunicationManager::CommunicationManager()
 {
@@ -19,7 +20,7 @@ CommunicationManager::~CommunicationManager()
 //Return:		void 
 void CommunicationManager::sendToClient(UserInfo* theUser)
 {
-	int res = send(theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
+	int res = send(theUser->userSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength() + 1, 0);
 	if (res == SOCKET_ERROR)
 	{
 		printf("Send failed with error: %ld\n", res);
@@ -61,6 +62,8 @@ void CommunicationManager::createMessage(std::string& message) {
 void CommunicationManager::sendToRoom(std::string& roomName, std::string& message) {
 	std::vector<std::string> theMessages;
 	theMessages.push_back(message);
+	int packetLength = getPacketSize(theMessages);
+
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
 		if (roomName == this->theLobbies[i]->lobbyName)
@@ -68,7 +71,7 @@ void CommunicationManager::sendToRoom(std::string& roomName, std::string& messag
 			//send the message to every player in the lobby
 			for (int clientIndex = 0; clientIndex < theLobbies[i]->thePlayers.size(); clientIndex++)
 			{
-				sendToClient(theLobbies[i]->thePlayers[clientIndex], message, 10, getPacketSize(theMessages));
+				sendToClient(theLobbies[i]->thePlayers[clientIndex], message, 10, packetLength);
 			}
 		}
 	}
@@ -78,7 +81,7 @@ void CommunicationManager::sendToRoom(std::string& roomName, std::string& messag
 //Purpose:		Populates the buffer with the message and send the packet to the server.
 //Return:		void 
 void CommunicationManager::sendToServer(SOCKET* theSocket) {
-	int res = send(*theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength(), 0);
+	int res = send(*theSocket, this->theBuffer->getBufferAsCharArray(), this->theBuffer->GetBufferLength()+ 1, 0);
 	if (res == SOCKET_ERROR)
 	{
 		printf("Send failed with error: %ld\n", res);
@@ -88,32 +91,38 @@ void CommunicationManager::sendToServer(SOCKET* theSocket) {
 //Name:			closeRoom
 //Purpose:		Given a lobby name a message of the host leaving will be sent to each client. Then the lobby will be removed.
 //Return:		void
-void CommunicationManager::closeRoom(std::string& roomName) {
+void CommunicationManager::closeLobby(std::string& roomName) {
 	std::string message = "The host has left, You have been removed from the Lobby!";
 	std::vector<std::string> theMessages;
 	theMessages.push_back(message);
+	int packetSize = getPacketSize(theMessages);
 
-	for (std::vector<GameLobby*>::iterator it = this->theLobbies.begin(); it < this->theLobbies.end(); it++)
+	for (std::vector<GameLobby*>::iterator it = this->theLobbies.begin(); it != this->theLobbies.end(); it++)
 	{
 		if (roomName == (*it)->lobbyName)
 		{
 			//send the message to every player in the lobby
 			for (int clientIndex = 0; clientIndex < (*it)->thePlayers.size(); clientIndex++)
 			{
-				sendToClient((*it)->thePlayers[clientIndex], message, 10, getPacketSize(theMessages));
+				sendToClient((*it)->thePlayers[clientIndex], message, 10, packetSize);
 			}
 			//clear the vector
 			(*it)->thePlayers.clear();
 			//remove the lobby
 			it = this->theLobbies.erase(it);
+			break;
 		}
 	}
 }
 
+//Name:			recieveMessage	
+//Purpose:		Receives a packet fo the current user,gets the message id and does the corresponding task.
+//Return:		void
 void CommunicationManager::recieveMessage(UserInfo& theUser) {
 
 	theUser.userBuffer->clearBuffer();
 	theUser.userBuffer->resizeBuffer(512);
+	theUser.userBuffer->resetReadWriteIndex();
 	//for getting packet length
 	std::vector<std::string> tempVector;
 
@@ -122,6 +131,21 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 	{
 		//get the packet length
 		int packetLength = theUser.userBuffer->ReadInt32BE();
+
+		while (bytesReceived < packetLength) {
+			bytesReceived += recv(theUser.userSocket, theUser.carryOverBuffer->getBufferAsCharArray(), theUser.carryOverBuffer->GetBufferLength(), 0);
+
+			std::vector<char> tempCharVec = theUser.carryOverBuffer->getBuffer();
+			std::vector<char> initialBuffer = theUser.userBuffer->getBuffer();
+
+			for (int i = 0; i < tempCharVec.size(); i++)
+			{
+				initialBuffer.push_back(tempCharVec[i]);
+			}
+			//set the buffer to the new concatenated buffer and set the read index to the correct location
+			theUser.userBuffer->setBuffer(initialBuffer);
+			theUser.userBuffer->setReadIndex(8);
+		}
 
 		//if the entire packet arrived otherwise do nothing
 		if (bytesReceived >= packetLength)
@@ -137,10 +161,8 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 
 			if (commandId == 1) {
 				//Register
-				
-				//get alld theinfo from the user buffer
+				//get the request id
 				int requestId = theUser.userBuffer->ReadInt32BE();
-
 				//add the request id to the users vector for later use
 				theUser.requests.push_back(requestId);
 
@@ -163,16 +185,31 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 			}
 			else if (commandId == 2) {
 				//Authenticate
+				//add the string to the vector in case the user already logged in
+				std::string alreadyLoggedIn = "This user is already logged in!";
+				tempVector.push_back(alreadyLoggedIn);
+				int packetSize = getPacketSize(tempVector);
 				//get all the info from the user buffer
 				int requestId = theUser.userBuffer->ReadInt32BE();
 
 				//add the request id to the users vector for later use
 				theUser.requests.push_back(requestId);
-
+				//get the info from the buffer
 				int emailLength = theUser.userBuffer->ReadInt32BE();
 				std::string email = theUser.userBuffer->ReadStringBE(emailLength);
 				int passLength = theUser.userBuffer->ReadInt32BE();
 				std::string password = theUser.userBuffer->ReadStringBE(passLength);
+
+				//check to see if the user is already logged in.
+				//(if it is send the message to the user trying to log in then return)
+				for (int i = 0; i < theLoggedInUsers.size(); i++) {
+					if (theLoggedInUsers[i]->userName == email)
+					{
+						//the user already exists
+						this->sendToClient(&theUser, alreadyLoggedIn, 10, packetSize);
+						return;
+					}
+				}
 
 				//write the data to the server buffer and send it 
 				this->theBuffer->WriteInt32BE(packetLength);
@@ -181,6 +218,8 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				this->theBuffer->WriteInt32BE(emailLength);
 				this->theBuffer->WriteStringBE(email);
 				this->theBuffer->WriteInt32BE(passLength);
+				this->theBuffer->WriteStringBE(password);
+
 				//send the message
 				this->sendToServer(this->theServerSocket);
 			}
@@ -196,10 +235,10 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				int lobbyLength = theUser.userBuffer->ReadInt32BE();
 				std::string lobbyName = theUser.userBuffer->ReadStringBE(lobbyLength);
 				//get the number of players allowed
-				int playerNumLength = theUser.userBuffer->ReadInt32BE();
-				std::string playerNum = theUser.userBuffer->ReadStringBE(playerNumLength);
+				int playerLength = theUser.userBuffer->ReadInt32BE();
+				int playerNum = theUser.userBuffer->ReadInt32BE();
 				//create the lobby
-				this->createLobby(&theUser, map, gameMode, lobbyName);
+				this->createLobby(&theUser, map, gameMode, lobbyName, playerNum);
 			}
 			else if (commandId == 4) {
 				//VIEW
@@ -207,8 +246,8 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				tempVector = this->getLobbyInfo();
 
 				//write id and packet size
-				this->theBuffer->WriteInt32BE(4);
 				this->theBuffer->WriteInt32BE(getPacketSize(tempVector) + HEADER_SIZE);
+				this->theBuffer->WriteInt32BE(3);
 
 				//write the lobby info
 				for (int i = 0; i < tempVector.size(); i++)
@@ -226,8 +265,8 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				tempVector = this->getLobbyInfo();
 
 				//write id and packet size
-				this->theBuffer->WriteInt32BE(4);
 				this->theBuffer->WriteInt32BE(getPacketSize(tempVector) + HEADER_SIZE);
+				this->theBuffer->WriteInt32BE(4);
 
 				//write the lobby info
 				for (int i = 0; i < tempVector.size(); i++)
@@ -257,10 +296,30 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				int responseLength = theUser.userBuffer->ReadInt32BE();
 				std::string response = theUser.userBuffer->ReadStringBE(responseLength);
 				//get the request id and find the corresponding user
-				UserInfo* foundUser = getUserWithByRequestId(requestId);
+				UserInfo* foundUser = getUserByRequestId(requestId);
 				tempVector.push_back(response);
 				//send the message
 				this->sendToClient(foundUser, response, 10, getPacketSize(tempVector));
+			}
+			else if (commandId == 11)
+			{
+				//generic response from the auth server
+				int requestId = theUser.userBuffer->ReadInt32BE();
+				int responseLength = theUser.userBuffer->ReadInt32BE();
+				std::string response = theUser.userBuffer->ReadStringBE(responseLength);
+				int userNameLength = theUser.userBuffer->ReadInt32BE();
+				std::string userName = theUser.userBuffer->ReadStringBE(userNameLength);
+
+				//get the request id and find the corresponding user
+				UserInfo* foundUser = getUserByRequestId(requestId);
+				//populate the username
+				foundUser->userName = userName;
+
+				this->theLoggedInUsers.push_back(foundUser);
+				//add 4 so that the length accounts for the integer in front of it
+				responseLength += 4;
+				//send the message
+				this->sendToClient(foundUser, response, 10, responseLength);
 			}
 			else if (commandId == 12)
 			{
@@ -269,7 +328,7 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 				int responseLength = theUser.userBuffer->ReadInt32BE();
 				std::string response = theUser.userBuffer->ReadStringBE(responseLength);
 				//get the request id and find the corresponding user
-				UserInfo* foundUser = getUserWithByRequestId(requestId);
+				UserInfo* foundUser = getUserByRequestId(requestId);
 				//add 4 so that the length accounts for the integer in front of it
 				responseLength += 4;
 				//send the message
@@ -277,19 +336,44 @@ void CommunicationManager::recieveMessage(UserInfo& theUser) {
 			}
 		}
 	}
+	else if (bytesReceived == 0) {
+		//user has reset the connection
+		//disconnect
+		this->userDisconnected(theUser, "User: " + theUser.userName + " has disconnected and has been removed from the lobby!");
+		FD_CLR(theUser.userSocket, &master);
+	}
+	else if (bytesReceived == 0 && WSAGetLastError() == WSAECONNRESET) {
+		//user has reset the connection
+		//disconnect
+		this->userDisconnected(theUser, "User: " + theUser.userName + " has reset the connection and has been removed from the lobby!");
+	}
+	else if (bytesReceived == 0 && WSAGetLastError() == WSAENETRESET) {
+		//user has reset the connection
+		//disconnect Network dropped connection on reset.
+		this->userDisconnected(theUser, "User: " + theUser.userName + "'s connection was dropped in network reset, and has been removed from the lobby!");
+	}
 	else if (bytesReceived == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {//print error message
 		printf("receive failed with error: %s", WSAGetLastError());
 	}
+	
 }
 
+
+//Name:			joinLobby	
+//Purpose:		Given a user and a lobby name, will put the user in the lobby unless the lobby doesn't exist or the user is already in.
+//Return:		void
 void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) {
-	//search through the lobbies
 	std::string theFullMessage = lobbyName + " is currently full!";
 	std::string theFailureMessage = lobbyName + " does not exist!";
 	std::string userJoinedTheRoom = theUser->userName + " joined the room!";
 	std::string successfullyJoinedTheRoom = "You have successfully joined the room!";
-
+	int packetLength = 0;
 	std::vector<std::string> theMessages;
+
+	//clear the buffer
+	this->theBuffer->clearBuffer();
+	this->theBuffer->resizeBuffer(512);
+	this->theBuffer->resetReadWriteIndex();
 
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
@@ -307,13 +391,18 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 
 				//send a success message to the user that joined the room
 				theMessages.push_back(successfullyJoinedTheRoom);
-				this->sendToClient(theUser, successfullyJoinedTheRoom, 10, this->getPacketSize(theMessages));
+				packetLength = this->getPacketSize(theMessages);
+				this->sendToClient(theUser, successfullyJoinedTheRoom, 10, packetLength);
+
+				//populate the users lobby
+				theUser->currentLobby = this->theLobbies[i];
 				return;
 			}
 			else {
 				//send the failure message
 				theMessages.push_back(theFullMessage);
-				this->sendToClient(theUser, theFullMessage, 10, this->getPacketSize(theMessages));
+				packetLength = this->getPacketSize(theMessages);
+				this->sendToClient(theUser, theFullMessage, 10, packetLength);
 				return;
 			}
 		}
@@ -321,80 +410,141 @@ void CommunicationManager::joinLobby(UserInfo* theUser, std::string& lobbyName) 
 
 	//didnt find the lobby 
 	theMessages.push_back(theFailureMessage);
-	this->sendToClient(theUser, theFailureMessage, 10, this->getPacketSize(theMessages));
+	packetLength = this->getPacketSize(theMessages);
+	this->sendToClient(theUser, theFailureMessage, 10, packetLength);
 }
 
-void CommunicationManager::leaveLobby(UserInfo* theUser, std::string& lobbyName) {
+
+//Name:			leaveLobby	
+//Purpose:		Given a user and lobby, checks to see if the user is in the lobby and removes the user.
+//Return:		void
+void CommunicationManager::leaveLobby(UserInfo* theUser, GameLobby* lobby) {
 	std::string tempMessage = "User " + theUser->userName + " has left the lobby!";
+	std::string hostLeft = "Host has left the Lobby! You have been removed !";
 	std::vector<std::string> theMessages;
-	theMessages.push_back(tempMessage);
+	int packetSize;
+	bool removeLobby = false;
+	GameLobby* theLobbyBeingUsed = new GameLobby();;
+
+	//get the correct lobby
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
-		if (this->theLobbies[i]->lobbyName == lobbyName)
+		if (this->theLobbies[i]->lobbyName == lobby->lobbyName)
 		{
-			//find the player
-			for (std::vector<UserInfo*>::iterator it = this->theLobbies[i]->thePlayers.begin(); it < this->theLobbies[i]->thePlayers.end(); i++)
-			{
-				//if the player is here remove it
-				if ((*it)->userSocket == theUser->userSocket)
-				{
-					it = this->theLobbies[i]->thePlayers.erase(it);
-					return;
-				}
-			}
+			//get the lobby
+			theLobbyBeingUsed = this->theLobbies[i];
+		}
+	}
 
-			//send a message to the people in the lobby
-			for (int playerIndex = 0; playerIndex < this->theLobbies[i]->thePlayers.size(); playerIndex++)
+	//find the player
+	for (std::vector<UserInfo*>::iterator it = theLobbyBeingUsed->thePlayers.begin(); it < theLobbyBeingUsed->thePlayers.end(); it++)
+	{
+		//if the player is the host and is leaving
+		if (theLobbyBeingUsed->hostName == theUser->userName)
+		{
+			//push back the leavig message
+			theMessages.push_back(hostLeft);
+			//get the packet size
+			packetSize = getPacketSize(theMessages);
+			//send a message to all users in the lobby and close the lobby
+			for (int pIndex = 0; pIndex < theLobbyBeingUsed->thePlayers.size(); pIndex++)
 			{
-				sendToClient(this->theLobbies[i]->thePlayers[playerIndex], tempMessage, 10, getPacketSize(theMessages));
+				sendToClient(theLobbyBeingUsed->thePlayers[pIndex], tempMessage, 10, packetSize);
 			}
+			//indicate that the lobby needs to be removed
+			removeLobby = true;
+			break;
+		}
+		//if the player is here remove it
+		if ((*it)->userSocket == theUser->userSocket)
+		{
+			it = theLobbyBeingUsed->thePlayers.erase(it);
+			break;
+		}
+	}
+
+	//if the host left remove the lobby
+	if (removeLobby)
+	{
+		this->closeLobby(theLobbyBeingUsed->lobbyName);
+	}
+	else {
+		//populate the messages vector
+		theMessages.push_back(tempMessage);
+		int packetSize = getPacketSize(theMessages);
+		//send a message to the people in the lobby
+		for (int playerIndex = 0; playerIndex < theLobbyBeingUsed->thePlayers.size(); playerIndex++)
+		{
+			sendToClient(theLobbyBeingUsed->thePlayers[playerIndex], tempMessage, 10, packetSize);
 		}
 	}
 
 }
 
-void CommunicationManager::createLobby(UserInfo* theUser, std::string& mapName, std::string& lobbyName, std::string& gameMode) {
+//Name:			createLobby	
+//Purpose:		Creates a lobby with the mapname gamemode lobbyname and num players. Sets the user as the lobby leader.
+//Return:			void
+void CommunicationManager::createLobby(UserInfo* theUser, std::string& mapName, std::string& gameMode, std::string& lobbyName, int& numPlayers) {
 	//populate the new lobby
 	GameLobby* theLobby = new GameLobby();
 	theLobby->gameMode = gameMode;
 	theLobby->hostName = theUser->userName;
 	theLobby->mapName = mapName;
 	theLobby->lobbyName = lobbyName;
+	theLobby->numSpots = numPlayers;
 
+	std::string lobbyCreated = "Successfully created Lobby:" + lobbyName;
 	std::string lobbyExists = "This lobby name is already taken! Please try again.";
 	std::vector<std::string> theMessages;
 	theMessages.push_back(lobbyExists);
+
+	//clear the buffer
+	this->theBuffer->clearBuffer();
+	this->theBuffer->resizeBuffer(512);
+	this->theBuffer->resetReadWriteIndex();
+	//packet size
+	int packetsize = getPacketSize(theMessages);
 	//check to see if the lobby name is already taken
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
 		if (theLobby->lobbyName == this->theLobbies[i]->lobbyName)
 		{
 			//lobby already exists
-			sendToClient(theUser, lobbyExists, 10, getPacketSize(theMessages));
+			sendToClient(theUser, lobbyExists, 10, packetsize);
 			return;
 		}
 	}
 
 	//lobby doesnt exist so create it
+	theUser->currentLobby = theLobby;
+	//add the creator to the lobby
+	theLobby->thePlayers.push_back(theUser);
+	//add the lobby
 	this->theLobbies.push_back(theLobby);
 	theLobby->numCurPlayers++;
+
+	theMessages.clear();
+	theMessages.push_back(lobbyCreated);
+	packetsize = getPacketSize(theMessages);
+	sendToClient(theUser, lobbyCreated, 10, packetsize);
 }
 
+//Name:			getLobbyInfo	
+//Purpose:		Adds all individual lobby info as a string to a vector to be  sent.
+//Return:		std::vector<std::string>
 std::vector<std::string> CommunicationManager::getLobbyInfo() {
 	std::string lobbyInfo = "";
 	std::vector<std::string> theLobbyInfo;
 	for (int i = 0; i < this->theLobbies.size(); i++)
 	{
 		lobbyInfo = "//";
-		//Id	Map Name	Lobby Name			Game Mode		Players		Host
-		//3		New York	Test your might!	Free For All	2|6			sous_chief
-		lobbyInfo = this->theLobbies[i]->mapName;
+		lobbyInfo += this->theLobbies[i]->mapName;
 		lobbyInfo += " || " + this->theLobbies[i]->lobbyName;
 		lobbyInfo += " || " + this->theLobbies[i]->gameMode;
-		lobbyInfo += " || " + this->theLobbies[i]->numCurPlayers;
-		lobbyInfo += "/" + this->theLobbies[i]->numSpots;
+		lobbyInfo += " || " + std::to_string(this->theLobbies[i]->numCurPlayers);
+		lobbyInfo += "/" + std::to_string(this->theLobbies[i]->numSpots);
 		lobbyInfo += " || " + this->theLobbies[i]->hostName;
-		lobbyInfo += "//";
+		lobbyInfo += "//,";
 		theLobbyInfo.push_back(lobbyInfo);
 	}
 	return theLobbyInfo;
@@ -418,13 +568,16 @@ int& CommunicationManager::getPacketSize(std::vector<std::string> theMessage) {
 	return tempSize;
 }
 
-UserInfo* CommunicationManager::getUserWithByRequestId(int id)
+//Name:			getUserByRequestId	
+//Purpose:		Gets a user by its corresponding request id.
+//Return:		UserInfo*
+UserInfo* CommunicationManager::getUserByRequestId(int id)
 {
 	//go through the users
 	for (int i = 0; i < this->theUsers.size(); i++)
 	{
 		//go through the currernt request vector to find the matching id
-		for (int requestIndex = 0; requestIndex < this->theUsers[i]->requests.size(); i++)
+		for (int requestIndex = 0; requestIndex < this->theUsers[i]->requests.size(); requestIndex++)
 		{
 			//if theres a match return the current user
 			if (this->theUsers[i]->requests[requestIndex] == id)
@@ -433,4 +586,71 @@ UserInfo* CommunicationManager::getUserWithByRequestId(int id)
 	}
 	//if the request isn't found
 	return new UserInfo();
+}
+
+//Name:			userDisconnected
+//Purpose:		If a user has disconnected it will send a message to all other users in the same lobby with the reason.
+//				If the user was the lobby leader the lobby will be closed and all users in the lobby will be notified.
+//Return:		void
+void CommunicationManager::userDisconnected(UserInfo& theUser, std::string reason) {
+	std::string tempMessage = reason;
+	std::string hostLeft = "The Host disconnected from the lobby! You have been removed!";
+	std::vector<std::string> theMessages;
+	int packetSize;
+	bool removeLobby = false;
+	GameLobby* theLobbyBeingUsed = new GameLobby();;
+
+	//get the correct lobby
+	for (int i = 0; i < this->theLobbies.size(); i++)
+	{
+		if (this->theLobbies[i]->lobbyName == theUser.currentLobby->lobbyName)
+		{
+			//get the lobby
+			theLobbyBeingUsed = this->theLobbies[i];
+		}
+	}
+
+	//find the player
+	for (std::vector<UserInfo*>::iterator it = theLobbyBeingUsed->thePlayers.begin(); it < theLobbyBeingUsed->thePlayers.end(); it++)
+	{
+		//if the player is the host and is leaving
+		if (theLobbyBeingUsed->hostName == theUser.userName)
+		{
+			//push back the leavig message
+			theMessages.push_back(hostLeft);
+			//get the packet size
+			packetSize = getPacketSize(theMessages);
+			//send a message to all users in the lobby and close the lobby
+			for (int pIndex = 0; pIndex < theLobbyBeingUsed->thePlayers.size(); pIndex++)
+			{
+				sendToClient(theLobbyBeingUsed->thePlayers[pIndex], tempMessage, 10, packetSize);
+			}
+			//indicate that the lobby needs to be removed
+			removeLobby = true;
+			break;
+		}
+		//if the player is here remove it
+		if ((*it)->userSocket == theUser.userSocket)
+		{
+			it = theLobbyBeingUsed->thePlayers.erase(it);
+			break;
+		}
+	}
+
+	//if the host left remove the lobby
+	if (removeLobby)
+	{
+		this->closeLobby(theLobbyBeingUsed->lobbyName);
+	}
+	else {
+		//populate the messages vector
+		theMessages.push_back(tempMessage);
+		int packetSize = getPacketSize(theMessages);
+		//send a message to the people in the lobby
+		for (int playerIndex = 0; playerIndex < theLobbyBeingUsed->thePlayers.size(); playerIndex++)
+		{
+			sendToClient(theLobbyBeingUsed->thePlayers[playerIndex], tempMessage, 10, packetSize);
+		}
+	}
+
 }

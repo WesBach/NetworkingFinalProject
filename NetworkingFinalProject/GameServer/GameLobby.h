@@ -13,10 +13,9 @@ public:
 	std::string lobbyName;
 	std::string mapName;
 	std::string gameMode;
-	const int numSpots = 6;
+	int numSpots = 0;
 	int numCurPlayers;
 	std::string hostName;
-
 	int getNumOpenings();
 
 	//vector or players

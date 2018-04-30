@@ -1,8 +1,6 @@
-#include <ctime>
 #include <string>
 #include <iostream>
 #include <conio.h>
-#include <list>
 #include "Utility.h"
 #include "SocketManager.h"
 
@@ -15,7 +13,6 @@ std::vector<std::string> g_screenInfo;
 SOCKET ConnectSocket;
 bool run;
 std::map<std::string, std::vector<std::string>> gameInfo;
-
 //function declarations
 int connectToServer(std::string port);
 void setMainInstructions();
@@ -24,13 +21,15 @@ std::string& keyboardInput(std::string& input);
 std::vector<std::string> populateCommands(std::string& commands,const int& numCommands);
 
 int main() {
+	//get rid of the ability to hit x(must type QUIT to close window)
+	HWND hwnd = GetConsoleWindow();
+	HMENU hmenu = GetSystemMenu(hwnd, FALSE);
+	EnableMenuItem(hmenu, SC_CLOSE, MF_GRAYED);
 	//TODO:: Change this to take in an ip and port number
 	g_ptheManager = new SocketManager();
-
 	//1. Connect to the game server with an ip and port number(1 mark)
 	connectToServer(DEFAULT_PORT);
 	setMainInstructions();
-
 
 	//run the loop
 	run = true;
@@ -39,7 +38,6 @@ int main() {
 
 	while (run)
 	{
-
 		//get keyboard input and use the Socket Manager to deal with the messages.
 		userInput = keyboardInput(userInput);
 		printScreen();
@@ -54,6 +52,9 @@ int main() {
 	WSACleanup();
 }
 
+//Name:			connectToServer
+//Purpose:		Connect to the Game Server.
+//Return:		int
 int connectToServer(std::string port) {
 	WSADATA wsaData;
 	ConnectSocket = INVALID_SOCKET;
@@ -124,8 +125,10 @@ int connectToServer(std::string port) {
 	g_ptheManager->theSocket = &ConnectSocket;
 }
 
+//Name:			setMainInstructions
+//Purpose:		Prints the main instructions to the screen.
+//Return:		void
 void setMainInstructions() {
-
 	gameInfo = getGameInfo("LobbyInfo.txt");
 	std::string tempString = "";
 
@@ -138,8 +141,8 @@ void setMainInstructions() {
 	print_text("Join Room: JOIN lobbyname");
 	print_text("Leave Room: LEAVE");
 	print_text("View Lobbies: VIEW");
-	print_text("Refresh Lobbies: REFRESH");
 	print_text("Create Lobbies: CREATE (Map Name, Game Mode, Lobby Name, Num Players)");
+	print_text("Quit: QUIT:");
 	print_text("Create Options:");
 	print_text("===============");
 	//print the map names
@@ -163,13 +166,12 @@ void setMainInstructions() {
 	for (int i = 0; i < gameInfo["NUMPLAYERS"].size(); i++)
 		tempString += "(" + gameInfo["NUMPLAYERS"][i] + ")";
 	print_text(tempString.c_str());
-
-	
-
-
-
 }
 
+
+//Name:			printScreen
+//Purpose:		Prints the data to the screen.
+//Return:		void
 void printScreen()
 {
 	//print all items in the vector to the screen
@@ -179,15 +181,19 @@ void printScreen()
 	}
 }
 
+//Name:			keyboardInput
+//Purpose:		Gets the input form the keyboard and once the input is valid sends it to be processed.
+//Return:		std::string&
 std::string& keyboardInput(std::string& input) {
-
 	//index variables for string find
 	int authenticateUserIndex = -1;
-	int leaveRoomIndex = -1;
+	int createIndex = -1;
 	int viewIndex = -1;
 	int refreshLobbiesIndex = -1;
 	int registerUserIndex = -1;
 	int quitIndex = -1;
+	int joinIndex = -1;
+	int leaveIndex = -1;
 	//vector to hold command and messages
 	std::vector<std::string> commands;
 
@@ -199,35 +205,54 @@ std::string& keyboardInput(std::string& input) {
 			{
 				registerUserIndex = input.find("REGISTER ");//Send Message
 				authenticateUserIndex = input.find("AUTHENTICATE ");//Join Room
-				leaveRoomIndex = input.find("LR ");//Leave Room
+				createIndex = input.find("CREATE ");//Leave Room
 				viewIndex = input.find("VIEW"); //View lobbies
 				refreshLobbiesIndex = input.find("REFRESH");	//Refresh the lobbies
 				quitIndex = input.find("QUIT");
+				joinIndex = input.find("JOIN ");
+				leaveIndex = input.find("LEAVE");
 
 				if (registerUserIndex >= 0)
 				{
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 3);
+					input = "";
 				}
-				else if (leaveRoomIndex >= 0)
+				if (leaveIndex >= 0)
+				{
+					//create the command and message and send it to the server
+					commands = populateCommands(input, 1);
+					input = "";
+				}
+				if (joinIndex >= 0)
 				{
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 2);
+					input = "";
+				}
+				else if (createIndex >= 0)
+				{
+					//create the command and message and send it to the server
+					commands = populateCommands(input, 5);
+					input = "";
 				}
 				else if (authenticateUserIndex >= 0)
 				{
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 3);
+					input = "";
 				}
 				else if (viewIndex >= 0)
 				{
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 1);
+					input = "";
 				}
 				else if (refreshLobbiesIndex >= 0)
 				{
 					//create the command and message and send it to the server
 					commands = populateCommands(input, 1);
+					input = "";
 				}
 				else if (quitIndex >= 0)
 				{
@@ -240,7 +265,6 @@ std::string& keyboardInput(std::string& input) {
 					g_ptheManager->buildMessage(commands);
 					g_ptheManager->sendMessage();
 				}
-
 			}
 		}
 		else if (c == '\b')
@@ -258,6 +282,9 @@ std::string& keyboardInput(std::string& input) {
 	return input;
 }
 
+//Name:			populateCommands
+//Purpose:		Separates the input into strings
+//Return:		std::vector<std::string>
 std::vector<std::string> populateCommands(std::string& commands,const int& numCommands) {	
 	std::string tempString = "";
 	std::vector<std::string> theCommands;
@@ -274,9 +301,11 @@ std::vector<std::string> populateCommands(std::string& commands,const int& numCo
 		if (commands[i] != ' ')
 		{
 			tempString += commands[i];
+			//if the last one was a single letter or number
+			if( i == commands.size() -1)
+				theCommands.push_back(tempString);
 		}
 		else {
-
 			theCommands.push_back(tempString);
 			//clear the string 
 			tempString = "";

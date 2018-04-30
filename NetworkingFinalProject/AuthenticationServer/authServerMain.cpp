@@ -1,4 +1,3 @@
-
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <iostream>
@@ -80,6 +79,9 @@ int main() {
 	}//end while
 }
 
+//Name:			initListening
+//Purpose:		Initializes the listening socket.
+//Return:		void
 void initListening() {
 
 	WSADATA wsaData;
@@ -127,6 +129,9 @@ void initListening() {
 	freeaddrinfo(result);
 }
 
+//Name:			connectToServer
+//Purpose:		Connects to the Game Server as a client.
+//Return:		void
 void connectToServer() {
 
 	int iResult = 0;

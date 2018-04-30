@@ -73,7 +73,6 @@ int main() {
 				}
 				else {
 					UserInfo* currInfo = getClientFromVector(sock);					
-
 					theManager->recieveMessage(*currInfo);
 				}
 
@@ -82,6 +81,9 @@ int main() {
 	}
 }
 
+//Name:			initListening
+//Purpose:		Setup the listening socket for listening.
+//Return:		int
 int initListening() {
 	WSADATA wsaData;
 	struct addrinfo* result = 0;
@@ -177,6 +179,9 @@ int initListening() {
 	theManager->theServerSocket = &ConnectSocket;
 }
 
+//Name:			getClientFromVector
+//Purpose:		Given a socket returns the user with that has that socket.
+//Return:		UserInfo*
 UserInfo* getClientFromVector(SOCKET& theSock) {
 	UserInfo* currInfo = NULL;
 	for (int i = 0; i < theManager->theUsers.size(); i++)

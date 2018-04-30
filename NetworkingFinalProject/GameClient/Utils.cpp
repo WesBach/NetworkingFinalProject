@@ -8,21 +8,28 @@
 HANDLE hStdout;
 CONSOLE_CURSOR_INFO lpCursor;
 COORD coord = { 0,0 };
-int max_number_of_rows = 20;
+int max_number_of_rows = 30;
 char buffer[1024];
 
+//Name:			start_text
+//Purpose:		Tells the print text function where to start writing.
+//Return:		void
 void start_text() {
 	GetConsoleCursorInfo(hStdout, &lpCursor);
 	lpCursor.bVisible = false;
 	SetConsoleCursorInfo(hStdout, &lpCursor);
 
-	coord.Y = 20;
+	coord.Y = 22;
 }
+
 
 void end_text() {
-	coord.Y = 20;
+	coord.Y = 22;
 }
 
+//Name:			print_text
+//Purpose:		Prints text to the console using the STD_OUTPUT_HANDLE.
+//Return:		void
 void print_text(const char* text, ...) {
 
 	va_list argptr;
@@ -40,6 +47,9 @@ void print_text(const char* text, ...) {
 	WriteConsole(hStdout, buffer, len, NULL, NULL);
 }
 
+//Name:			getGameInfo
+//Purpose:		Gets the create lobby options from file.
+//Return:		std::map<std::string, std::vector<std::string>>
 std::map<std::string, std::vector<std::string>> getGameInfo(std::string filename) {
 	//open the file
 	std::ifstream file(filename);
@@ -84,7 +94,9 @@ std::map<std::string, std::vector<std::string>> getGameInfo(std::string filename
 	return gameInfo;
 }
 
-
+//Name:			ReadFileToToken
+//Purpose:		Reads up to and just past a "token" given a file and a token.
+//Return:		void
 void ReadFileToToken(std::ifstream &file, std::string token)
 {
 	bool bKeepReading = true;

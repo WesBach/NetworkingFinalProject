@@ -11,6 +11,9 @@ GameLobby::~GameLobby() {
 
 }
 
+//Name:		getNumOpenings
+//Purpose:	return the number of openings left in the lobby.
+//Return:	int
 int GameLobby::getNumOpenings() {
 	return numSpots - numCurPlayers;
 }
