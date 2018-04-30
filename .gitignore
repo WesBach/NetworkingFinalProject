@@ -13,6 +13,8 @@
 *.userprefs
 
 # Build results
+!NetworkingFinalProject/lib/[Dd]ebug/*
+!NetworkingFinalProject/lib/[Rr]elease/*
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
